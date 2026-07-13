@@ -9,8 +9,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.room.Room
 import com.lemonsquad.musichome.core.data.LauncherRepositoryImpl
-import com.lemonsquad.musichome.core.data.MusicDatabase
-import com.lemonsquad.musichome.core.data.MusicRepositoryImpl
+import com.lemonsquad.musichome.core.data.database.MusicDatabase
+import com.lemonsquad.musichome.core.data.media.MediaStoreScanner
+import com.lemonsquad.musichome.core.data.repository.LocalMediaRepository
 import com.lemonsquad.musichome.ui.MusicHomeApp
 import com.lemonsquad.musichome.ui.viewmodels.AppsViewModel
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
@@ -29,7 +30,8 @@ class MainActivity : ComponentActivity() {
             "music_db"
         ).build()
         
-        val musicRepository = MusicRepositoryImpl(database.songDao())
+        val mediaStoreScanner = MediaStoreScanner(applicationContext)
+        val musicRepository = LocalMediaRepository(mediaStoreScanner, database.songDao())
         val launcherRepository = LauncherRepositoryImpl(applicationContext)
 
         val musicViewModel = MusicViewModel(musicRepository, applicationContext)

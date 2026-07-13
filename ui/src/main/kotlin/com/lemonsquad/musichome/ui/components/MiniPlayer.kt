@@ -13,9 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
@@ -42,11 +44,14 @@ fun MiniPlayer(viewModel: MusicViewModel) {
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                AsyncImage(
+                    model = currentSong.artwork,
+                    contentDescription = null,
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color.DarkGray)
+                        .background(Color.DarkGray),
+                    contentScale = ContentScale.Crop
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))

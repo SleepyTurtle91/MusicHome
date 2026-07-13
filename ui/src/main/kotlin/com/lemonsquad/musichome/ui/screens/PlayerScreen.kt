@@ -17,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
@@ -76,12 +78,21 @@ fun PlayerScreen(viewModel: MusicViewModel) {
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Default.PlayArrow,
+                            AsyncImage(
+                                model = currentSong.artwork,
                                 contentDescription = null,
-                                modifier = Modifier.size(100.dp),
-                                tint = Color.Gray
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
+                            
+                            if (currentSong.artwork == null) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(100.dp),
+                                    tint = Color.Gray
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))

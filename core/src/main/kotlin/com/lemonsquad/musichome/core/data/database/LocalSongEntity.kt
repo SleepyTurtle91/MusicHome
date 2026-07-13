@@ -9,7 +9,10 @@ data class LocalSongEntity(
     val title: String,
     val artist: String,
     val album: String,
+    val albumId: Long?,
+    val albumArtUri: String?,
     val duration: Long,
-    val uri: String,
-    val albumArtUri: String?
+    val path: String,
+    val mimeType: String,
+    val dateAdded: Long
 )

@@ -1,9 +1,9 @@
 package com.lemonsquad.musichome.ui.viewmodels
 
-import com.lemonsquad.musichome.core.domain.LocalSong
+import com.lemonsquad.musichome.core.domain.model.Song
 
 sealed interface MusicUiState {
     object Loading : MusicUiState
     object Empty : MusicUiState
-    data class Success(val songs: List<LocalSong>) : MusicUiState
+    data class Success(val songs: List<Song>) : MusicUiState
 }

@@ -13,9 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lemonsquad.musichome.core.domain.LocalSong
+import coil.compose.AsyncImage
+import com.lemonsquad.musichome.core.domain.model.Song
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
@@ -79,7 +81,7 @@ fun LibraryScreen(viewModel: MusicViewModel) {
 }
 
 @Composable
-fun SongListItem(song: LocalSong, onClick: () -> Unit) {
+fun SongListItem(song: Song, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -88,11 +90,14 @@ fun SongListItem(song: LocalSong, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
+        AsyncImage(
+            model = song.artwork,
+            contentDescription = null,
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color.DarkGray)
+                .background(Color.DarkGray),
+            contentScale = ContentScale.Crop
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column {
