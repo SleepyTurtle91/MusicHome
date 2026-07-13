@@ -20,7 +20,8 @@ Music Home is currently under active development.
 - [x] Home Launcher registration
 - [x] Basic "Walkman Orange" UI implementation
 - [x] Media3 Playback Service integration
-- [/] Local Media Scanning & Room Database integration
+- [x] Robust Local Media Scanning & Room Database
+- [x] Clean Architecture (Domain & Data separation)
 - [ ] Adaptive Tablet Layouts
 
 ---
@@ -48,14 +49,14 @@ Designed to give a new purpose to recycled hardware:
 
 ## 🏗️ Architecture
 
-The project follows a modularized Clean Architecture approach.
+The project follows a modularized **Clean Architecture** approach.
 
 ```mermaid
 graph TD
     subgraph "Music Home"
         app[":app (Entry & Manifest)"]
         ui[":ui (Compose & ViewModels)"]
-        core[":core (Repository & Room)"]
+        core[":core (Domain & Data)"]
         media[":media (Media3 Service)"]
 
         app --> ui
@@ -67,9 +68,11 @@ graph TD
     end
 ```
 
-- **`:app`**: Entry point. Handles `MainActivity` (Launcher), Boot Receivers, and system configurations.
-- **`:ui`**: The visual layer. Built with **Jetpack Compose**. Contains Screens and ViewModels.
-- **`:core`**: Business logic. Contains Room entities, Repository implementations, and MediaStore interaction.
+- **`:app`**: Entry point. Handles `MainActivity` (Launcher), Boot Receivers, and high-level DI.
+- **`:ui`**: The visual layer. Built with **Jetpack Compose**. Contains Screens, ViewModels, and state management using domain models.
+- **`:core`**: The heart of the app.
+    - **Domain**: Pure Kotlin models (`Song`, `ScanState`) and repository interfaces.
+    - **Data**: Room entities, DAOs, and the `MediaStore` scanner.
 - **`:media`**: Audio engine. Houses the `MusicPlaybackService` using **AndroidX Media3**.
 
 ---
@@ -78,6 +81,7 @@ graph TD
 
 - **Language**: Kotlin 2.0.21
 - **UI Framework**: Jetpack Compose (Material 3)
+- **Image Loading**: Coil (Compose-specific)
 - **Media Engine**: AndroidX Media3 / ExoPlayer
 - **Dependency Management**: Gradle Version Catalog
 - **Local Storage**: Room Persistence Library
@@ -89,6 +93,8 @@ graph TD
 - [x] Launcher replacement functionality
 - [x] Immersive Mode & Boot-start support
 - [x] Walkman UI Theme refinement
+- [x] Decoupled Domain/Data layers
+- [x] Real-time MediaStore synchronization
 - [ ] Full Local Library browsing (Artists, Albums, Playlists)
 - [ ] Hardware volume integration & Audio Focus handling
 - [ ] Tablet-optimized Two-Pane Layout
