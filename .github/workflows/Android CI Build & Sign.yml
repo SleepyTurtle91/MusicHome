@@ -1,0 +1,49 @@
+name: Android CI Build & Sign
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17' # Change to '11' if your project is older
+        distribution: 'temurin'
+        cache: gradle # Speeds up builds significantly
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build Release APK
+      # This compiles your Kotlin code and generates an unsigned release APK
+      run: ./gradlew assembleRelease
+
+    - name: Sign APK
+      uses: r0adkll/sign-android-release@v1
+      id: sign_app
+      with:
+        releaseDirectory: app/build/outputs/apk/release
+        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+        alias: ${{ secrets.KEY_ALIAS }}
+        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+        keyPassword: ${{ secrets.KEY_PASSWORD }}
+      env:
+        # Resolves an issue with older Java versions in the signing action
+        BUILD_TOOLS_VERSION: "34.0.0" 
+
+    - name: Upload Signed APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: Signed-Release-APK
+        # The signing step outputs the exact path to the signed file
+        path: ${{steps.sign_app.outputs.signedReleaseFile}}
