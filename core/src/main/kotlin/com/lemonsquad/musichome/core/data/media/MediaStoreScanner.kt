@@ -29,7 +29,8 @@ class MediaStoreScanner(private val context: Context) {
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.MIME_TYPE,
-            MediaStore.Audio.Media.DATE_ADDED
+            MediaStore.Audio.Media.DATE_ADDED,
+            MediaStore.Audio.Media.TRACK
         )
 
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= ?"
@@ -52,6 +53,7 @@ class MediaStoreScanner(private val context: Context) {
             val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
             val mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
             val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val trackColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -73,7 +75,8 @@ class MediaStoreScanner(private val context: Context) {
                         duration = cursor.getLong(durationColumn),
                         path = cursor.getString(dataColumn) ?: "",
                         mimeType = cursor.getString(mimeTypeColumn) ?: "audio/*",
-                        dateAdded = cursor.getLong(dateAddedColumn)
+                        dateAdded = cursor.getLong(dateAddedColumn),
+                        trackNumber = cursor.getInt(trackColumn)
                     )
                 )
             }

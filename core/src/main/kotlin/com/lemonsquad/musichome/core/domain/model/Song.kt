@@ -10,5 +10,6 @@ data class Song(
     val duration: Long,
     val artwork: Uri?,
     val mediaUri: Uri,
-    val path: String
+    val path: String,
+    val trackNumber: Int = 0
 )

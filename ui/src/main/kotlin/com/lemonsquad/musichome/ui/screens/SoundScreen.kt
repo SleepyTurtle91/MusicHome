@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -104,6 +105,7 @@ fun SoundScreen(viewModel: MusicViewModel) {
                         containerColor = if (preset == "FLAT") Color(0xFF1A1A1A) else Color.Transparent
                     ),
                     border = AssistChipDefaults.assistChipBorder(
+                        enabled = true,
                         borderColor = if (preset == "FLAT") WalkmanOrange else Color.DarkGray
                     ),
                     shape = RoundedCornerShape(4.dp)
@@ -160,9 +162,3 @@ fun EqSlider(label: String, enabled: Boolean) {
         )
     }
 }
-
-// Add this to avoid unresolved reference in Slider rotation
-@Composable
-fun Modifier.graphicsLayer(rotationZ: Float): Modifier = this.then(
-    androidx.compose.ui.graphics.graphicsLayer(rotationZ = rotationZ)
-)

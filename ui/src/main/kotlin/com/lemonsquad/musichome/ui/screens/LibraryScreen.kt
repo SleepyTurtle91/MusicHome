@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -18,17 +21,26 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.lemonsquad.musichome.core.domain.model.Album
+import com.lemonsquad.musichome.core.domain.model.Artist
 import com.lemonsquad.musichome.core.domain.model.Song
+import com.lemonsquad.musichome.ui.components.FolderBrowser
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
+import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 
 @Composable
-fun LibraryScreen(viewModel: MusicViewModel) {
+fun LibraryScreen(
+    viewModel: MusicViewModel,
+    onAlbumClick: (Album) -> Unit = {}
+) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Songs", "Albums", "Artists", "Folders")
@@ -40,16 +52,18 @@ fun LibraryScreen(viewModel: MusicViewModel) {
             .fillMaxSize()
             .background(PureBlack)
     ) {
+        // High-contrast, hardware-style tab row
         ScrollableTabRow(
             selectedTabIndex = selectedTab,
             containerColor = PureBlack,
-            contentColor = MaterialTheme.colorScheme.primary,
+            contentColor = WalkmanOrange,
             edgePadding = 16.dp,
             divider = {},
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = MaterialTheme.colorScheme.primary
+                    color = WalkmanOrange,
+                    height = 3.dp
                 )
             }
         ) {
@@ -57,7 +71,14 @@ fun LibraryScreen(viewModel: MusicViewModel) {
                 Tab(
                     selected = selectedTab == index,
                     onClick = { selectedTab = index },
-                    text = { Text(title, fontSize = 14.sp) }
+                    text = {
+                        Text(
+                            title.uppercase(),
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                            letterSpacing = 2.sp
+                        )
+                    }
                 )
             }
         }
@@ -65,37 +86,235 @@ fun LibraryScreen(viewModel: MusicViewModel) {
         when (val state = uiState) {
             is MusicUiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = WalkmanOrange)
                 }
             }
             is MusicUiState.Empty -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No Music Library Found", color = Color.White)
+                if (selectedTab == 3) {
+                    FolderList(viewModel)
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("NO MEDIA FOUND", color = MetallicGray, letterSpacing = 2.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { selectedTab = 3 },
+                                colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange)
+                            ) {
+                                Text("SETUP FOLDERS")
+                            }
+                        }
+                    }
                 }
             }
             is MusicUiState.Success -> {
-                if (isTablet) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 250.dp),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(state.songs) { song ->
-                            SongGridItem(song = song, onClick = { viewModel.playSong(song) })
-                        }
+                when (selectedTab) {
+                    0 -> SongList(state.songs, viewModel, isTablet)
+                    1 -> AlbumGrid(state.albums, viewModel, isTablet, onAlbumClick)
+                    2 -> ArtistList(state.artists, viewModel, isTablet)
+                    3 -> FolderList(viewModel)
+                    else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("TAB COMING SOON", color = MetallicGray)
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FolderList(viewModel: MusicViewModel) {
+    val folders by viewModel.repository.watchedFolders.collectAsState(initial = emptyList())
+    var selectedFolderPath by remember { mutableStateOf<String?>(null) }
+
+    if (selectedFolderPath != null) {
+        FolderBrowser(
+            rootPath = selectedFolderPath!!,
+            onFileClick = { /* TODO: Play file directly if audio */ },
+            onBack = { selectedFolderPath = null }
+        )
+    } else {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Button(
+                onClick = { viewModel.requestDirectoryPicker() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text("ADD MUSIC FOLDER", fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+            }
+
+            LazyColumn {
+                items(folders) { folder ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedFolderPath = folder }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items(state.songs) { song ->
-                            SongListItem(song = song, onClick = { viewModel.playSong(song) })
+                        Icon(Icons.Default.Folder, null, tint = WalkmanOrange, modifier = Modifier.size(32.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = folder.substringAfterLast("/"), color = Color.White, fontSize = 16.sp)
+                            Text(text = folder, color = MetallicGray, fontSize = 12.sp, maxLines = 1)
+                        }
+                        IconButton(onClick = { viewModel.repository.removeManualPath(folder) }) {
+                            Icon(Icons.Default.Delete, null, tint = Color.Red)
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SongList(songs: List<Song>, viewModel: MusicViewModel, isTablet: Boolean) {
+    if (isTablet) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 300.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(songs) { song ->
+                SongListItem(song = song, onClick = { viewModel.playSong(song, songs) })
+            }
+        }
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(songs) { song ->
+                SongListItem(song = song, onClick = { viewModel.playSong(song, songs) })
+            }
+        }
+    }
+}
+
+@Composable
+fun AlbumGrid(
+    albums: List<Album>,
+    viewModel: MusicViewModel,
+    isTablet: Boolean,
+    onAlbumClick: (Album) -> Unit
+) {
+    val columns = if (isTablet) GridCells.Adaptive(minSize = 200.dp) else GridCells.Fixed(2)
+    
+    LazyVerticalGrid(
+        columns = columns,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        items(albums) { album ->
+            AlbumGridItem(album = album, onClick = { onAlbumClick(album) })
+        }
+    }
+}
+
+@Composable
+fun ArtistList(artists: List<Artist>, viewModel: MusicViewModel, isTablet: Boolean) {
+    if (isTablet) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 250.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(artists) { artist ->
+                ArtistListItem(artist = artist, onClick = { /* TODO: Open Artist Details */ })
+            }
+        }
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(artists) { artist ->
+                ArtistListItem(artist = artist, onClick = { /* TODO: Open Artist Details */ })
+            }
+        }
+    }
+}
+
+@Composable
+fun AlbumGridItem(album: Album, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        AsyncImage(
+            model = album.artworkUri,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color(0xFF1A1A1A)),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = album.title,
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = album.artist,
+            color = MetallicGray,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = "${album.songCount} SONGS",
+            color = WalkmanOrange.copy(alpha = 0.8f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+@Composable
+fun ArtistListItem(artist: Artist, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = artist.artworkUri,
+            contentDescription = null,
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(32.dp)) // Circular for artists
+                .background(Color(0xFF1A1A1A)),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.width(20.dp))
+        Column {
+            Text(
+                text = artist.name,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+            Text(
+                text = "${artist.albumCount} ALBUMS • ${artist.songCount} SONGS",
+                color = MetallicGray,
+                fontSize = 12.sp,
+                letterSpacing = 1.sp
+            )
         }
     }
 }

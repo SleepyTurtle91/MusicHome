@@ -7,12 +7,21 @@ android {
     namespace = "com.lemonsquad.musichome"
     compileSdk = 37
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.keystore")
+            storePassword = "password123"
+            keyAlias = "release-key"
+            keyPassword = "password123"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.lemonsquad.musichome"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -21,6 +30,7 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

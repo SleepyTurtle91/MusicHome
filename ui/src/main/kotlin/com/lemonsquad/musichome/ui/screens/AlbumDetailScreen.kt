@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -108,7 +109,7 @@ fun AlbumDetailContent(state: AlbumDetailUiState.Success, viewModel: MusicViewMo
                 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(
-                        onClick = { /* TODO: Play All */ },
+                        onClick = { viewModel.playAlbum(state.album, state.songs) },
                         colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange),
                         shape = RoundedCornerShape(4.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -119,7 +120,7 @@ fun AlbumDetailContent(state: AlbumDetailUiState.Success, viewModel: MusicViewMo
                     }
                     
                     OutlinedButton(
-                        onClick = { /* TODO: Shuffle */ },
+                        onClick = { viewModel.shuffleAlbum(state.album, state.songs) },
                         shape = RoundedCornerShape(4.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                         border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(Color.White, Color.Transparent))),
@@ -138,8 +139,8 @@ fun AlbumDetailContent(state: AlbumDetailUiState.Success, viewModel: MusicViewMo
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            items(state.songs) { song ->
-                AlbumSongItem(song = song, onClick = { viewModel.playSong(song) })
+            itemsIndexed(state.songs) { index, song ->
+                AlbumSongItem(song = song, onClick = { viewModel.playAlbum(state.album, state.songs, index) })
             }
         }
     }
@@ -176,11 +177,4 @@ fun AlbumSongItem(song: Song, onClick: () -> Unit) {
             )
         }
     }
-}
-
-private fun formatDuration(durationMs: Long): String {
-    val totalSeconds = durationMs / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
 }

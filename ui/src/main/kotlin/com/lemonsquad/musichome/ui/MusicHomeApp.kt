@@ -7,16 +7,16 @@ import android.os.BatteryManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
+import androidx.compose.material3.adaptive.navigationsuite.*
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
@@ -32,9 +32,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.lemonsquad.musichome.ui.components.MiniPlayer
+import com.lemonsquad.musichome.ui.components.VolumeHud
+import com.lemonsquad.musichome.ui.screens.AlbumDetailScreen
 import com.lemonsquad.musichome.ui.screens.AppsScreen
 import com.lemonsquad.musichome.ui.screens.LibraryScreen
 import com.lemonsquad.musichome.ui.screens.PlayerScreen
+import com.lemonsquad.musichome.ui.screens.QueueScreen
+import com.lemonsquad.musichome.ui.screens.SoundScreen
+import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.theme.WalkmanTheme
 import com.lemonsquad.musichome.ui.viewmodels.AppsViewModel
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
@@ -70,6 +75,10 @@ fun MusicHomeApp(
         WindowWidthSizeClass.Medium -> NavigationSuiteType.NavigationRail
         else -> NavigationSuiteType.NavigationDrawer
     }
+    
+    val showVolumeHud by musicViewModel.showVolumeHud.collectAsState()
+    val volumeLevel by musicViewModel.volumeLevel.collectAsState()
+    val maxVolume = 15 // Standard Android max volume for media, could be dynamic
 
     WalkmanTheme {
         NavigationSuiteScaffold(
@@ -78,9 +87,9 @@ fun MusicHomeApp(
                 val items = listOf(
                     Triple("library", "Library", Icons.Default.LibraryMusic),
                     Triple("player", "Player", Icons.Default.PlayArrow),
+                    Triple("queue", "Queue", Icons.AutoMirrored.Filled.QueueMusic),
                     Triple("apps", "Apps", Icons.Default.Apps),
                     Triple("sound", "Sound", Icons.Default.Tune),
-                    Triple("settings", "Settings", Icons.Default.Settings)
                 )
 
                 items.forEach { (route, label, icon) ->
@@ -97,8 +106,23 @@ fun MusicHomeApp(
                                 }
                             }
                         },
-                        icon = { Icon(icon, contentDescription = label) },
-                        label = { Text(label, fontSize = 10.sp) }
+                        icon = { 
+                            Icon(
+                                icon, 
+                                contentDescription = label,
+                                tint = if (currentRoute == route) WalkmanOrange else Color.Gray,
+                                modifier = if (currentRoute == route) Modifier.size(28.dp) else Modifier.size(24.dp)
+                            ) 
+                        },
+                        label = { 
+                            Text(
+                                label.uppercase(), 
+                                fontSize = 10.sp, 
+                                fontWeight = if (currentRoute == route) FontWeight.Bold else FontWeight.Medium,
+                                letterSpacing = 1.sp,
+                                color = if (currentRoute == route) WalkmanOrange else Color.Gray
+                            ) 
+                        }
                     )
                 }
             },
@@ -130,7 +154,7 @@ fun MusicHomeApp(
                     )
                 },
                 bottomBar = {
-                    if (currentRoute != "player" && currentRoute != null) {
+                    if (currentRoute != "player" && currentRoute != "album-detail" && currentRoute != null) {
                         MiniPlayer(viewModel = musicViewModel)
                     }
                 }
@@ -140,13 +164,33 @@ fun MusicHomeApp(
                     startDestination = "player",
                     modifier = Modifier.padding(innerPadding)
                 ) {
-                    composable("library") { LibraryScreen(musicViewModel) }
+                    composable("library") { 
+                        LibraryScreen(
+                            viewModel = musicViewModel,
+                            onAlbumClick = { album ->
+                                musicViewModel.selectAlbum(album)
+                                navController.navigate("album-detail")
+                            }
+                        ) 
+                    }
+                    composable("album-detail") {
+                        AlbumDetailScreen(musicViewModel)
+                    }
+                    composable("queue") {
+                        QueueScreen(musicViewModel)
+                    }
                     composable("player") { PlayerScreen(musicViewModel) }
                     composable("apps") { AppsScreen(appsViewModel) }
-                    composable("sound") { Box(modifier = Modifier.padding(16.dp)) { Text("Sound Settings Placeholder", color = Color.White) } }
+                    composable("sound") { SoundScreen(musicViewModel) }
                     composable("settings") { Box(modifier = Modifier.padding(16.dp)) { Text("Settings Placeholder", color = Color.White) } }
                 }
             }
+            
+            VolumeHud(
+                visible = showVolumeHud,
+                volume = volumeLevel,
+                maxVolume = maxVolume
+            )
         }
     }
 }
@@ -167,15 +211,15 @@ fun MusicBottomBar(navController: NavHostController) {
         containerColor = Color.Black,
         tonalElevation = 0.dp
     ) {
-        val items = listOf(
+        val navItems = listOf(
             Triple("library", "Library", Icons.Default.LibraryMusic),
             Triple("player", "Player", Icons.Default.PlayArrow),
+            Triple("queue", "Queue", Icons.AutoMirrored.Filled.QueueMusic),
             Triple("apps", "Apps", Icons.Default.Apps),
-            Triple("sound", "Sound", Icons.Default.Tune),
-            Triple("settings", "Settings", Icons.Default.Settings)
+            Triple("sound", "Sound", Icons.Default.Tune)
         )
 
-        items.forEach { (route, label, icon) ->
+        navItems.forEach { (route, label, icon) ->
             NavigationBarItem(
                 selected = currentDestination == route,
                 onClick = {
@@ -189,11 +233,24 @@ fun MusicBottomBar(navController: NavHostController) {
                         }
                     }
                 },
-                icon = { Icon(icon, contentDescription = label) },
-                label = { Text(label, fontSize = 10.sp) },
+                icon = { 
+                    Icon(
+                        icon, 
+                        contentDescription = label,
+                        tint = if (currentDestination == route) WalkmanOrange else Color.Gray
+                    ) 
+                },
+                label = { 
+                    Text(
+                        label.uppercase(), 
+                        fontSize = 10.sp,
+                        color = if (currentDestination == route) WalkmanOrange else Color.Gray,
+                        fontWeight = if (currentDestination == route) FontWeight.Bold else FontWeight.Medium
+                    ) 
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    selectedIconColor = WalkmanOrange,
+                    selectedTextColor = WalkmanOrange,
                     indicatorColor = Color.Transparent,
                     unselectedIconColor = Color.Gray,
                     unselectedTextColor = Color.Gray

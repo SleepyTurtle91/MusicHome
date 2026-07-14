@@ -14,5 +14,6 @@ data class LocalSongEntity(
     val duration: Long,
     val path: String,
     val mimeType: String,
-    val dateAdded: Long
+    val dateAdded: Long,
+    val trackNumber: Int = 0
 )
