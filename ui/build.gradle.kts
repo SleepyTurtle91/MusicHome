@@ -35,6 +35,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
 
+    implementation(libs.androidx.adaptive.navigation.suite)
+    implementation(libs.androidx.window.size)
+
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.common)
     

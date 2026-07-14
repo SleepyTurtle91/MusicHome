@@ -38,6 +38,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.window.size)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

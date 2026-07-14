@@ -14,6 +14,11 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,7 +46,8 @@ import java.util.*
 @Composable
 fun MusicHomeApp(
     musicViewModel: MusicViewModel,
-    appsViewModel: AppsViewModel
+    appsViewModel: AppsViewModel,
+    windowSizeClass: WindowSizeClass
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -59,50 +65,87 @@ fun MusicHomeApp(
         }
     }
 
+    val navSuiteType = when (windowSizeClass.widthSizeClass) {
+        WindowWidthSizeClass.Compact -> NavigationSuiteType.NavigationBar
+        WindowWidthSizeClass.Medium -> NavigationSuiteType.NavigationRail
+        else -> NavigationSuiteType.NavigationDrawer
+    }
+
     WalkmanTheme {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            "WALKMAN",
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 4.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.Black
-                    ),
-                    actions = {
-                        Text(
-                            "$currentTime | $batteryLevel%",
-                            modifier = Modifier.padding(end = 16.dp),
-                            fontSize = 12.sp,
-                            color = Color.LightGray
-                        )
-                    }
+        NavigationSuiteScaffold(
+            layoutType = navSuiteType,
+            navigationSuiteItems = {
+                val items = listOf(
+                    Triple("library", "Library", Icons.Default.LibraryMusic),
+                    Triple("player", "Player", Icons.Default.PlayArrow),
+                    Triple("apps", "Apps", Icons.Default.Apps),
+                    Triple("sound", "Sound", Icons.Default.Tune),
+                    Triple("settings", "Settings", Icons.Default.Settings)
                 )
+
+                items.forEach { (route, label, icon) ->
+                    item(
+                        selected = currentRoute == route,
+                        onClick = {
+                            if (currentRoute != route) {
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        icon = { Icon(icon, contentDescription = label) },
+                        label = { Text(label, fontSize = 10.sp) }
+                    )
+                }
             },
-            bottomBar = {
-                Column {
+            containerColor = Color.Black,
+            contentColor = Color.White
+        ) {
+            Scaffold(
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        title = {
+                            Text(
+                                "WALKMAN",
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 4.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = Color.Black
+                        ),
+                        actions = {
+                            Text(
+                                "$currentTime | $batteryLevel%",
+                                modifier = Modifier.padding(end = 16.dp),
+                                fontSize = 12.sp,
+                                color = Color.LightGray
+                            )
+                        }
+                    )
+                },
+                bottomBar = {
                     if (currentRoute != "player" && currentRoute != null) {
                         MiniPlayer(viewModel = musicViewModel)
                     }
-                    MusicBottomBar(navController)
                 }
-            }
-        ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = "player",
-                modifier = Modifier.padding(innerPadding)
-            ) {
-                composable("library") { LibraryScreen(musicViewModel) }
-                composable("player") { PlayerScreen(musicViewModel) }
-                composable("apps") { AppsScreen(appsViewModel) }
-                composable("sound") { Box(modifier = Modifier.padding(16.dp)) { Text("Sound Settings Placeholder", color = Color.White) } }
-                composable("settings") { Box(modifier = Modifier.padding(16.dp)) { Text("Settings Placeholder", color = Color.White) } }
+            ) { innerPadding ->
+                NavHost(
+                    navController = navController,
+                    startDestination = "player",
+                    modifier = Modifier.padding(innerPadding)
+                ) {
+                    composable("library") { LibraryScreen(musicViewModel) }
+                    composable("player") { PlayerScreen(musicViewModel) }
+                    composable("apps") { AppsScreen(appsViewModel) }
+                    composable("sound") { Box(modifier = Modifier.padding(16.dp)) { Text("Sound Settings Placeholder", color = Color.White) } }
+                    composable("settings") { Box(modifier = Modifier.padding(16.dp)) { Text("Settings Placeholder", color = Color.White) } }
+                }
             }
         }
     }
