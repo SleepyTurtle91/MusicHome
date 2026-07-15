@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -30,6 +31,7 @@ import com.lemonsquad.musichome.core.domain.model.Album
 import com.lemonsquad.musichome.core.domain.model.Artist
 import com.lemonsquad.musichome.core.domain.model.Song
 import com.lemonsquad.musichome.ui.components.FolderBrowser
+import com.lemonsquad.musichome.ui.theme.DarkSurface
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
@@ -39,7 +41,8 @@ import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 @Composable
 fun LibraryScreen(
     viewModel: MusicViewModel,
-    onAlbumClick: (Album) -> Unit = {}
+    onAlbumClick: (Album) -> Unit = {},
+    onEditMetadata: (Song) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -109,7 +112,7 @@ fun LibraryScreen(
             }
             is MusicUiState.Success -> {
                 when (selectedTab) {
-                    0 -> SongList(state.songs, viewModel, isTablet)
+                    0 -> SongList(state.songs, viewModel, isTablet, onEditMetadata)
                     1 -> AlbumGrid(state.albums, viewModel, isTablet, onAlbumClick)
                     2 -> ArtistList(state.artists, viewModel, isTablet)
                     3 -> FolderList(viewModel)
@@ -172,7 +175,7 @@ fun FolderList(viewModel: MusicViewModel) {
 }
 
 @Composable
-fun SongList(songs: List<Song>, viewModel: MusicViewModel, isTablet: Boolean) {
+fun SongList(songs: List<Song>, viewModel: MusicViewModel, isTablet: Boolean, onEditMetadata: (Song) -> Unit) {
     if (isTablet) {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 300.dp),
@@ -182,13 +185,13 @@ fun SongList(songs: List<Song>, viewModel: MusicViewModel, isTablet: Boolean) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(songs) { song ->
-                SongListItem(song = song, onClick = { viewModel.playSong(song, songs) })
+                SongListItem(song = song, onClick = { viewModel.playSong(song, songs) }, onEditMetadata = { onEditMetadata(song) })
             }
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(songs) { song ->
-                SongListItem(song = song, onClick = { viewModel.playSong(song, songs) })
+                SongListItem(song = song, onClick = { viewModel.playSong(song, songs) }, onEditMetadata = { onEditMetadata(song) })
             }
         }
     }
@@ -347,7 +350,9 @@ fun SongGridItem(song: Song, onClick: () -> Unit) {
 }
 
 @Composable
-fun SongListItem(song: Song, onClick: () -> Unit) {
+fun SongListItem(song: Song, onClick: () -> Unit, onEditMetadata: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -366,9 +371,28 @@ fun SongListItem(song: Song, onClick: () -> Unit) {
             contentScale = ContentScale.Crop
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(text = song.title, color = Color.White, fontSize = 16.sp, maxLines = 1)
             Text(text = song.artist, color = MetallicGray, fontSize = 14.sp, maxLines = 1)
+        }
+        
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "More", tint = MetallicGray)
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier.background(DarkSurface)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("EDIT METADATA", color = Color.White, fontSize = 12.sp) },
+                    onClick = {
+                        showMenu = false
+                        onEditMetadata()
+                    }
+                )
+            }
         }
     }
 }

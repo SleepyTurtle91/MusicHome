@@ -27,4 +27,5 @@ include(":app")
 include(":core")
 include(":media")
 include(":ui")
+include(":organizer")
  

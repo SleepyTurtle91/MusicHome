@@ -2,6 +2,7 @@ package com.lemonsquad.musichome.core.domain.repository
 
 import com.lemonsquad.musichome.core.domain.model.Album
 import com.lemonsquad.musichome.core.domain.model.Artist
+import com.lemonsquad.musichome.core.domain.model.NavigationMode
 import com.lemonsquad.musichome.core.domain.model.PlaybackQueue
 import com.lemonsquad.musichome.core.domain.model.ScanState
 import com.lemonsquad.musichome.core.domain.model.Song
@@ -15,6 +16,7 @@ interface MusicRepository {
     val currentQueue: StateFlow<PlaybackQueue?>
     val watchedFolders: Flow<List<String>>
     val scanState: Flow<ScanState>
+    val navigationMode: Flow<NavigationMode>
 
     fun getSongsByAlbum(albumId: Long): Flow<List<Song>>
     fun getSongsByArtist(artistName: String): Flow<List<Song>>
@@ -23,6 +25,7 @@ interface MusicRepository {
     fun updateQueueIndex(index: Int)
     fun addManualPath(path: String)
     fun removeManualPath(path: String)
+    fun setNavigationMode(mode: NavigationMode)
 
     suspend fun savePlaybackState(songId: Long?, positionMs: Long)
     suspend fun saveLastDestination(destination: String, id: String? = null)

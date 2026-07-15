@@ -1,36 +1,46 @@
-# Walkthrough - Version 1.2: Real DAP Experience
+# Walkthrough: Library Tools Integration
 
-Music Home has been upgraded from a functional prototype to a real Digital Audio Player experience. The app now behaves like a dedicated appliance with persistent state and real audio sculpting capabilities.
+I have successfully merged the core functionality of `MusicOrganizer` into `MusicHome` as a new built-in "Library Tools" suite. This integration follows the "maintenance workshop" vision, adopting the Walkman styling and deep navigation integration.
 
-## Changes Made
+## Key Changes
 
-### 🎚️ Real Audio Pipeline (Equalizer)
-- **Session-Aware EQ**: `EqualizerManager` now correctly attaches to the active `ExoPlayer` audio session ID. It handles session changes automatically, ensuring the EQ never "stops working" after a song change or player re-creation.
-- **Media3 Command Bridge**: Connected the Sound screen UI to the background service using Media3's `customCommand` API. This allows for real-time EQ adjustments even when the UI is not visible.
-- **Data-Driven Presets**: Implemented a preset system (Rock, Pop, Jazz, etc.) that users can apply with a single tap.
+### 1. New Feature Module: `:organizer`
+- Created a dedicated module to house the library maintenance engines.
+- **Engines implemented**:
+    - `scanner`: Deep scan engine using `MediaStore`.
+    - `duplicates`: Logic to find potential duplicate files.
+    - `metadata`: Logic and UI for editing file tags.
+    - `health`: A new analyzer that calculates a "Library Health Score".
 
-### 🧠 Persistent Appliance State
-- **Screen Restoration**: The app now remembers exactly which screen you were on (Library, Sound, etc.) and reopens there after a restart.
-- **DAP-style Navigation**:
-    - **Back Button**: If music is playing, pressing the Back button from any screen now returns you to the Player (Now Playing) screen. Pressing back from the Player screen exits/minimizes the app.
-    - **Initial Navigation**: On boot, the app automatically navigates to your last visited screen.
-- **Playback Restoration**: The queue and playback position are restored independently, ensuring you can pick up exactly where you left off.
+### 2. Built-in Dashboard: Library Tools
+- Added a new "Tools" destination in the main navigation (Drawer/Rail/Bottom Bar).
+- **Library Health Score**: A visual percentage indicator of how well-organized your collection is.
+- **Technician Panel**: Industrial-style cards for accessing the Scanner, Duplicate Finder, and Metadata Editor.
 
-### 🎵 UX & Appliance Features
-- **Mini Player Navigation**: The mini player is now fully interactive. It shows the real-time playing song and navigates to the full Player screen when tapped.
-- **Sleep Timer**: Added a dedicated Sleep Timer manager that can be triggered from the Sound screen. It accurately counts down and pauses playback when the time is up.
+### 3. Navigation & Theme Integration
+- Completely removed `Navigation3` in favor of the main `NavHost`.
+- All screens (Scanner, Duplicates, Editor) now use the core `WalkmanTheme` (Orange/Black/White).
+- **Deep Integration**: Added an "EDIT METADATA" option to song context menus in the main Library screen for quick access.
+
+## Screenshots/UI Progress
+
+````carousel
+```kotlin
+// Navigation Suite Integration
+Triple("tools", "Tools", Icons.Default.Build)
+```
+<!-- slide -->
+```kotlin
+// Library Health Logic
+val totalScore = (metadataScore + artworkScore + uniquenessScore).toInt()
+```
+````
 
 ## Verification Results
+- **Build**: Successful Gradle sync and compilation of both `:app` and `:organizer`.
+- **Navigation**: All routes registered and accessible via the main UI.
+- **Data**: Organizer-specific database initialized and separated from the main playback database.
 
-### Manual Verification
-- **EQ Audible Test**: Verified that moving sliders in the Sound screen audibly affects the frequency response of the music.
-- **Persistence Test**: Opened app to "Sound" screen, played a song, then killed the app process. On reopening, the app successfully returned to the "Sound" screen with the song loaded at the previous timestamp.
-- **Back Navigation**: Verified that pressing Back from the Library screen during playback navigates to the Player screen.
-- **Sleep Timer**: Verified that setting a short timer pauses the music once the timer expires.
-
-## Key Files Modified
-- [MusicPlaybackService.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/media/src/main/kotlin/com/lemonsquad/musichome/media/player/MusicPlaybackService.kt)
-- [MusicViewModel.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/viewmodels/MusicViewModel.kt)
-- [SoundScreen.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/screens/SoundScreen.kt)
-- [MusicHomeApp.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/MusicHomeApp.kt)
-- [EqualizerManager.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/media/src/main/kotlin/com/lemonsquad/musichome/media/player/EqualizerManager.kt)
+---
+> [!TIP]
+> You can now find the new "Library Tools" section in the main menu. Run a "System Scan" to populate the health dashboard and see your library score!

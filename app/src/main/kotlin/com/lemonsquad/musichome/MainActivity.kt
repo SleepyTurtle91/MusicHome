@@ -19,6 +19,10 @@ import com.lemonsquad.musichome.core.data.LauncherRepositoryImpl
 import com.lemonsquad.musichome.core.data.database.MusicDatabase
 import com.lemonsquad.musichome.core.data.media.MediaStoreScanner
 import com.lemonsquad.musichome.core.data.repository.LocalMediaRepository
+import com.lemonsquad.musichome.organizer.data.OrganizerDatabase
+import com.lemonsquad.musichome.organizer.data.OrganizerRepository
+import com.lemonsquad.musichome.organizer.scanner.MediaScanner as OrganizerMediaScanner
+import com.lemonsquad.musichome.organizer.ui.LibraryToolsViewModel
 import com.lemonsquad.musichome.ui.MusicHomeApp
 import com.lemonsquad.musichome.ui.viewmodels.AppsViewModel
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
@@ -79,6 +83,12 @@ class MainActivity : ComponentActivity() {
         val musicRepository = LocalMediaRepository(mediaStoreScanner, database.songDao(), applicationContext)
         val launcherRepository = LauncherRepositoryImpl(applicationContext)
 
+        // Organizer Setup
+        val organizerDb = OrganizerDatabase.getDatabase(applicationContext)
+        val organizerScanner = OrganizerMediaScanner(applicationContext)
+        val organizerRepository = OrganizerRepository(organizerDb.musicDao(), organizerScanner)
+        val libraryToolsViewModel = LibraryToolsViewModel(organizerRepository)
+
         musicViewModel = MusicViewModel(musicRepository, applicationContext)
         musicViewModel.setDirectoryPicker { directoryPicker.launch(null) }
         val appsViewModel = AppsViewModel(launcherRepository)
@@ -88,7 +98,9 @@ class MainActivity : ComponentActivity() {
             MusicHomeApp(
                 musicViewModel = musicViewModel,
                 appsViewModel = appsViewModel,
-                windowSizeClass = windowSizeClass
+                libraryToolsViewModel = libraryToolsViewModel,
+                windowSizeClass = windowSizeClass,
+                appVersion = BuildConfig.VERSION_NAME
             )
         }
     }

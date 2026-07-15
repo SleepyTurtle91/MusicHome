@@ -1,10 +1,13 @@
 package com.lemonsquad.musichome.ui.screens
 
 import android.content.res.Configuration
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -34,47 +38,79 @@ import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 import com.lemonsquad.musichome.ui.viewmodels.PlaybackStatus
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(viewModel: MusicViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val spectrum by viewModel.spectrum.collectAsState()
     val playbackStatus by viewModel.playbackStatus.collectAsState()
+    val palette by viewModel.currentPalette.collectAsState()
+    
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
     val isTablet = configuration.screenWidthDp >= 600
     
     var isArtworkFocusMode by remember { mutableStateOf(false) }
+    var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var showAmbientMode by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureBlack)
-    ) {
-        when (val state = uiState) {
-            is MusicUiState.Loading -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = WalkmanOrange)
-            }
-            is MusicUiState.Empty -> {
-                Text(
-                    "NO MEDIA DETECTED",
-                    color = MetallicGray,
-                    letterSpacing = 2.sp,
-                    modifier = Modifier.align(Alignment.Center)
+    val dominantAnimate by animateColorAsState(palette.dominant, animationSpec = tween(1000), label = "Dominant")
+    val darkVibrantAnimate by animateColorAsState(palette.darkVibrant, animationSpec = tween(1000), label = "Vibrant")
+
+    LaunchedEffect(lastInteractionTime, playbackStatus.isPlaying) {
+        if (playbackStatus.isPlaying) {
+            delay(30000)
+            showAmbientMode = true
+        }
+    }
+
+    if (showAmbientMode) {
+        AmbientPlayer(viewModel = viewModel, onExit = {
+            showAmbientMode = false
+            lastInteractionTime = System.currentTimeMillis()
+        })
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures { lastInteractionTime = System.currentTimeMillis() }
+                }
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            darkVibrantAnimate.copy(alpha = 0.5f),
+                            dominantAnimate.copy(alpha = 0.2f),
+                            PureBlack
+                        )
+                    )
                 )
-            }
-            is MusicUiState.Success -> {
-                // Find the song currently playing or default to the first one
-                val currentSong = state.songs.find { it.id.toString() == playbackStatus.currentSongId } ?: state.songs.firstOrNull()
-                
-                if (currentSong != null) {
-                    if (isArtworkFocusMode) {
-                        ArtworkFocusLayout(currentSong, spectrum, playbackStatus, viewModel, onExit = { isArtworkFocusMode = false })
-                    } else {
-                        if (isTablet && !isPortrait) {
-                            TabletPlayerLayout(currentSong, spectrum, playbackStatus, viewModel, onFocusRequest = { isArtworkFocusMode = true })
+        ) {
+            when (val state = uiState) {
+                is MusicUiState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = WalkmanOrange)
+                }
+                is MusicUiState.Empty -> {
+                    Text(
+                        "NO MEDIA DETECTED",
+                        color = MetallicGray,
+                        letterSpacing = 2.sp,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                is MusicUiState.Success -> {
+                    val currentSong = state.songs.find { it.id.toString() == playbackStatus.currentSongId } ?: state.songs.firstOrNull()
+                    
+                    if (currentSong != null) {
+                        if (isArtworkFocusMode) {
+                            ArtworkFocusLayout(currentSong, spectrum, playbackStatus, viewModel, darkVibrantAnimate, onExit = { isArtworkFocusMode = false })
                         } else {
-                            PhonePlayerLayout(currentSong, spectrum, playbackStatus, viewModel)
+                            if (isTablet && !isPortrait) {
+                                TabletPlayerLayout(currentSong, spectrum, playbackStatus, viewModel, darkVibrantAnimate, onFocusRequest = { isArtworkFocusMode = true })
+                            } else {
+                                PhonePlayerLayout(currentSong, spectrum, playbackStatus, viewModel, darkVibrantAnimate)
+                            }
                         }
                     }
                 }
@@ -89,31 +125,39 @@ fun TabletPlayerLayout(
     spectrum: FloatArray,
     status: com.lemonsquad.musichome.ui.viewmodels.PlaybackStatus,
     viewModel: MusicViewModel,
+    accentColor: Color,
     onFocusRequest: () -> Unit
 ) {
     Row(modifier = Modifier.fillMaxSize()) {
-        // Left: Massive Artwork with Focus trigger
         Box(
             modifier = Modifier
                 .fillMaxHeight()
                 .weight(1.2f)
-                .background(Color.Black)
                 .clickable { onFocusRequest() },
             contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
-                model = currentSong.artwork,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
+            AnimatedContent(
+                targetState = currentSong.artwork,
+                transitionSpec = {
+                    fadeIn(tween(600)) + scaleIn(initialScale = 0.95f) togetherWith
+                    fadeOut(tween(600))
+                },
+                label = "ArtworkTransition"
+            ) { targetArtwork ->
+                AsyncImage(
+                    model = targetArtwork,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
             
-            // Visualizer overlaying bottom of artwork
             SpectrumVisualizer(
                 spectrum = spectrum,
+                color = accentColor,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(80.dp)
@@ -123,7 +167,6 @@ fun TabletPlayerLayout(
             )
         }
 
-        // Right: Hardware Control Panel
         Column(
             modifier = Modifier
                 .fillMaxHeight()
@@ -131,36 +174,34 @@ fun TabletPlayerLayout(
                 .padding(48.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = currentSong.title.uppercase(),
-                color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
-                lineHeight = 40.sp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = currentSong.artist,
-                    color = WalkmanOrange,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 1.sp
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Box(
-                    modifier = Modifier
-                        .border(1.dp, Color(0xFFFFD700), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text("FLAC / 24-BIT", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = currentSong.title.uppercase(),
+                        color = Color.White,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp,
+                        lineHeight = 40.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = currentSong.artist,
+                            color = WalkmanOrange,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        QualityBadge(status)
+                    }
                 }
+                AudioInfoPanel(status)
             }
             
             Spacer(modifier = Modifier.height(64.dp))
 
-            // Linear Appliance Progress Bar
             Column {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(formatDuration(status.position), color = MetallicGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -180,7 +221,6 @@ fun TabletPlayerLayout(
 
             Spacer(modifier = Modifier.height(64.dp))
 
-            // Large Transport Controls (Machined style)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -220,14 +260,10 @@ fun PhonePlayerLayout(
     currentSong: Song,
     spectrum: FloatArray,
     status: PlaybackStatus,
-    viewModel: MusicViewModel
+    viewModel: MusicViewModel,
+    accentColor: Color
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureBlack)
-    ) {
-        // --- TOP 40%: ARTWORK DISPLAY ---
+    Column(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -235,18 +271,26 @@ fun PhonePlayerLayout(
                 .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
-                model = currentSong.artwork,
-                contentDescription = null,
-                modifier = Modifier
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
-                contentScale = ContentScale.Crop
-            )
+            AnimatedContent(
+                targetState = currentSong.artwork,
+                transitionSpec = {
+                    fadeIn(tween(600)) + scaleIn(initialScale = 0.95f) togetherWith
+                    fadeOut(tween(600))
+                },
+                label = "ArtworkTransition"
+            ) { targetArtwork ->
+                AsyncImage(
+                    model = targetArtwork,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
 
-        // --- BOTTOM 60%: HARDWARE INTERFACE ---
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -254,7 +298,16 @@ fun PhonePlayerLayout(
                 .padding(horizontal = 32.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Info Area
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                QualityBadge(status)
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = currentSong.title.uppercase(),
                 color = Color.White,
@@ -277,9 +330,9 @@ fun PhonePlayerLayout(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 2. Visualizer ("Screen Feedback")
             SpectrumVisualizer(
                 spectrum = spectrum,
+                color = accentColor,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
@@ -288,7 +341,17 @@ fun PhonePlayerLayout(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 3. Progress Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                InfoItem(status.format ?: "—")
+                InfoItem(if (status.sampleRate != null) "${status.sampleRate / 1000f}k" else "—")
+                InfoItem(if (status.bitrate != null) "${status.bitrate / 1000}k" else "—")
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -311,27 +374,18 @@ fun PhonePlayerLayout(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // 4. Hardware-style Transport Controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HardwareButton(
-                    icon = Icons.Default.SkipPrevious,
-                    onClick = { viewModel.skipToPrevious() }
-                )
-                
+                HardwareButton(icon = Icons.Default.SkipPrevious, onClick = { viewModel.skipToPrevious() })
                 HardwareButton(
                     icon = if (status.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() },
                     isPrimary = true
                 )
-
-                HardwareButton(
-                    icon = Icons.Default.SkipNext,
-                    onClick = { viewModel.skipToNext() }
-                )
+                HardwareButton(icon = Icons.Default.SkipNext, onClick = { viewModel.skipToNext() })
             }
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -339,11 +393,7 @@ fun PhonePlayerLayout(
 }
 
 @Composable
-fun HardwareButton(
-    icon: ImageVector,
-    onClick: () -> Unit,
-    isPrimary: Boolean = false
-) {
+fun HardwareButton(icon: ImageVector, onClick: () -> Unit, isPrimary: Boolean = false) {
     val size = if (isPrimary) 88.dp else 72.dp
     val iconSize = if (isPrimary) 44.dp else 36.dp
     
@@ -356,13 +406,42 @@ fun HardwareButton(
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(iconSize),
-                tint = Color.White
-            )
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(iconSize), tint = Color.White)
         }
+    }
+}
+
+@Composable
+fun AudioInfoPanel(status: PlaybackStatus) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        HorizontalDivider(modifier = Modifier.width(24.dp), thickness = 1.dp, color = MetallicGray.copy(alpha = 0.3f))
+        InfoItem(status.format ?: "—")
+        InfoItem(if (status.bitDepth != null) "${status.bitDepth}-BIT" else "—")
+        InfoItem(if (status.sampleRate != null) "${status.sampleRate / 1000f} kHz" else "—")
+        InfoItem(if (status.bitrate != null) "${status.bitrate / 1000} kbps" else "—")
+        HorizontalDivider(modifier = Modifier.width(24.dp), thickness = 1.dp, color = MetallicGray.copy(alpha = 0.3f))
+    }
+}
+
+@Composable
+fun InfoItem(label: String) {
+    Text(text = label, color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+}
+
+@Composable
+fun QualityBadge(status: PlaybackStatus) {
+    val text = when {
+        status.isHighRes -> "HI-RES"
+        status.isLossless -> "LOSSLESS"
+        else -> "STANDARD"
+    }
+    val color = when {
+        status.isHighRes -> Color(0xFFFFD700)
+        status.isLossless -> Color(0xFF00E5FF)
+        else -> MetallicGray
+    }
+    Box(modifier = Modifier.border(1.dp, color, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
+        Text(text, color = color, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
@@ -372,98 +451,32 @@ fun ArtworkFocusLayout(
     spectrum: FloatArray,
     status: com.lemonsquad.musichome.ui.viewmodels.PlaybackStatus,
     viewModel: MusicViewModel,
+    accentColor: Color,
     onExit: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureBlack)
-    ) {
-        AsyncImage(
-            model = currentSong.artwork,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize().clickable { onExit() },
-            contentScale = ContentScale.Crop,
-            alpha = 0.6f
-        )
-        
-        // Gradient overlay for readability
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, PureBlack.copy(alpha = 0.8f))
-                    )
-                )
-                .clickable { onExit() }
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = currentSong.title.uppercase(),
-                color = Color.White,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 4.sp,
-                maxLines = 1
-            )
-            Text(
-                text = currentSong.artist,
-                color = WalkmanOrange,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 2.sp
-            )
-            
+    Box(modifier = Modifier.fillMaxSize().background(PureBlack)) {
+        AnimatedContent(
+            targetState = currentSong.artwork,
+            transitionSpec = { fadeIn(tween(1000)) togetherWith fadeOut(tween(1000)) },
+            label = "AmbientArtwork"
+        ) { targetArtwork ->
+            AsyncImage(model = targetArtwork, contentDescription = null, modifier = Modifier.fillMaxSize().clickable { onExit() }, contentScale = ContentScale.Crop, alpha = 0.6f)
+        }
+        Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(colors = listOf(Color.Transparent, PureBlack.copy(alpha = 0.9f)))).clickable { onExit() })
+        Column(modifier = Modifier.align(Alignment.BottomCenter).padding(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = currentSong.title.uppercase(), color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp, maxLines = 1)
+            Text(text = currentSong.artist, color = WalkmanOrange, fontSize = 24.sp, fontWeight = FontWeight.Medium, letterSpacing = 2.sp)
             Spacer(modifier = Modifier.height(48.dp))
-            
-            SpectrumVisualizer(
-                spectrum = spectrum,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .alpha(0.9f)
-            )
-            
+            SpectrumVisualizer(spectrum = spectrum, color = accentColor, modifier = Modifier.fillMaxWidth().height(120.dp).alpha(0.9f))
             Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(
-                text = "${formatDuration(status.position)} / ${formatDuration(status.duration)}",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-
+            Text(text = "${formatDuration(status.position)} / ${formatDuration(status.duration)}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(32.dp))
-
-            // Focus Mode Transport
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { viewModel.skipToPrevious() }) {
-                    Icon(Icons.Default.SkipPrevious, null, Modifier.size(48.dp), Color.White)
-                }
-                
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { viewModel.skipToPrevious() }) { Icon(Icons.Default.SkipPrevious, null, Modifier.size(48.dp), Color.White) }
                 IconButton(onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() }) {
-                    Icon(
-                        if (status.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, 
-                        null, 
-                        Modifier.size(64.dp), 
-                        WalkmanOrange
-                    )
+                    Icon(if (status.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, Modifier.size(64.dp), WalkmanOrange)
                 }
-
-                IconButton(onClick = { viewModel.skipToNext() }) {
-                    Icon(Icons.Default.SkipNext, null, Modifier.size(48.dp), Color.White)
-                }
+                IconButton(onClick = { viewModel.skipToNext() }) { Icon(Icons.Default.SkipNext, null, Modifier.size(48.dp), Color.White) }
             }
         }
     }

@@ -13,6 +13,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
@@ -24,6 +25,7 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation(project(":media"))
+    implementation(project(":organizer"))
     
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

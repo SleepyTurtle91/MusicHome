@@ -8,13 +8,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 
 @Composable
 fun SpectrumVisualizer(
     spectrum: FloatArray,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    color: Color = WalkmanOrange
 ) {
     // Smoothed spectrum values to avoid flickering
     val smoothedSpectrum = remember { FloatArray(16) { 0f } }
@@ -37,8 +39,8 @@ fun SpectrumVisualizer(
         
         val gradient = Brush.verticalGradient(
             colors = listOf(
-                WalkmanOrange,
-                WalkmanOrange.copy(alpha = 0.3f)
+                color,
+                color.copy(alpha = 0.3f)
             )
         )
 

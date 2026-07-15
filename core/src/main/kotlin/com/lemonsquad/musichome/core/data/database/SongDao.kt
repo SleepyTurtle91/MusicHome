@@ -54,6 +54,13 @@ interface SongDao {
     @Query("SELECT * FROM local_songs WHERE id IN (:ids)")
     suspend fun getSongsByIds(ids: List<Long>): List<LocalSongEntity>
 
+    // App Settings
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveAppSettings(settings: AppSettingsEntity)
+
+    @Query("SELECT * FROM app_settings WHERE id = 0")
+    fun getAppSettings(): Flow<AppSettingsEntity?>
+
     // Watched Folders
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertWatchedFolder(folder: WatchedFolderEntity)

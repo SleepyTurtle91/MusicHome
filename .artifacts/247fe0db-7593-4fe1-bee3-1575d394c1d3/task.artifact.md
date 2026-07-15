@@ -1,26 +1,25 @@
-# Task: Version 1.2 - Real DAP Experience
+- `[x]` **Phase 1: Build & Infrastructure**
+    - `[x]` Update `libs.versions.toml` with new dependencies
+    - `[x]` Include `:organizer` module in `settings.gradle.kts`
+    - `[x]` Create `:organizer` module `build.gradle.kts`
+    - `[x]` Sync Gradle
 
-## Phase 1 — Core DAP behavior
-- [x] Refactor `EqualizerManager` for session lifecycle & settings persistence (`attachToSession`)
-- [x] Implement `MediaLibrarySession.Callback` in `MusicPlaybackService` for EQ custom commands
-- [x] Add EQ command handling in `MusicPlaybackService`
-- [x] Update `MusicViewModel` with EQ StateFlows and command methods
-- [x] Connect `SoundScreen` UI to `MusicViewModel` EQ state
+- `[x]` **Phase 2: Core Organizer Engines**
+    - `[x]` Implement Data Layer (Entities, DAO, Database)
+    - `[x]` Implement Scanner Engine (`MediaScanner`)
+    - `[x]` Implement Duplicate Engine (`DuplicateFinder`)
+    - `[x]` Implement Repository and Library Health logic
+    - `[x]` Implement Metadata Engine (Edit logic)
 
-## Phase 2 — Persistence & Restoration
-- [x] Update `PlaybackStateEntity` and `SongDao` for `lastDestination` and `lastDestinationId`
-- [x] Implement `lastDestination` persistence in `LocalMediaRepository`
-- [x] Refactor `restorePlaybackState` in `MusicViewModel` (Separate Queue vs Position)
-- [x] Implement initial navigation to `lastDestination` in `MusicHomeApp`
+- `[x]` **Phase 3: UI Implementation (Walkman Style)**
+    - `[x]` Create `LibraryToolsViewModel`
+    - `[x]` Create `LibraryToolsScreen` (Dashboard/Technician Panel)
+    - `[x]` Implement `DuplicateFinderScreen` (Walkman Style)
+    - `[x]` Implement `MetadataEditorScreen` (Walkman Style)
+    - `[x]` Implement `ScannerProgressScreen` (Walkman Style)
 
-## Phase 3 — Appliance feeling & UX
-- [x] Refine `MiniPlayer` (Navigation to full player, better state sync)
-- [x] Implement DAP-style Back button logic in `MusicHomeApp` (via `BackHandler`)
-- [x] Add `SleepTimerManager` and Media3 command integration
-- [x] Implement EQ Presets (data-driven)
-
-## Phase 4 — Verification
-- [ ] Manual test: EQ audible changes
-- [ ] Manual test: Position & screen restoration
-- [ ] Manual test: Sleep timer
-- [ ] Manual test: Back button behavior
+- `[x]` **Phase 4: Integration**
+    - `[x]` Add "Library Tools" to `MusicHomeApp` Navigation Suite
+    - `[x]` Register all routes in the main `NavHost`
+    - `[x]` Add "Edit Metadata" to `LibraryScreen` context menus
+    - `[x]` Verification & Cleanup

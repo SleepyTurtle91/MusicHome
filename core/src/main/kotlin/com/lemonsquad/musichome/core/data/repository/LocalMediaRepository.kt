@@ -2,6 +2,7 @@ package com.lemonsquad.musichome.core.data.repository
 
 import android.net.Uri
 import com.lemonsquad.musichome.core.data.database.AlbumDto
+import com.lemonsquad.musichome.core.data.database.AppSettingsEntity
 import com.lemonsquad.musichome.core.data.database.ArtistDto
 import com.lemonsquad.musichome.core.data.database.LocalSongEntity
 import com.lemonsquad.musichome.core.data.database.PlaybackStateEntity
@@ -57,6 +58,10 @@ class LocalMediaRepository(
         dtos.map { it.toDomain() }
     }
 
+    override val navigationMode: Flow<NavigationMode> = dao.getAppSettings().map { entity ->
+        entity?.navigationMode?.let { NavigationMode.valueOf(it) } ?: NavigationMode.AUTO
+    }
+
     override suspend fun syncLibrary() {
         try {
             _scanState.value = ScanState.Scanning
@@ -97,6 +102,12 @@ class LocalMediaRepository(
 
     override fun updateQueueIndex(index: Int) {
         _currentQueue.value = _currentQueue.value?.copy(currentIndex = index)
+    }
+
+    override fun setNavigationMode(mode: NavigationMode) {
+        repositoryScope.launch(Dispatchers.IO) {
+            dao.saveAppSettings(AppSettingsEntity(navigationMode = mode.name))
+        }
     }
 
     override fun addManualPath(path: String) {

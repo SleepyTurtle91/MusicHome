@@ -12,11 +12,13 @@ import androidx.media3.session.SessionToken
 import androidx.palette.graphics.Palette
 import androidx.media3.common.C
 import com.google.common.util.concurrent.ListenableFuture
+import androidx.compose.ui.graphics.Color
 import com.lemonsquad.musichome.core.data.media.ArtworkCache
 import com.lemonsquad.musichome.core.domain.model.*
 import com.lemonsquad.musichome.core.domain.repository.MusicRepository
 import com.lemonsquad.musichome.media.player.MusicPlaybackService
 import com.lemonsquad.musichome.media.player.VisualizerManager
+import com.lemonsquad.musichome.ui.models.AlbumPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -24,6 +26,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.os.Bundle
 import androidx.media3.session.SessionCommand
+
+import androidx.media3.common.util.UnstableApi
 
 class MusicViewModel(
     val repository: MusicRepository,
@@ -47,6 +51,19 @@ class MusicViewModel(
 
     private val _playbackStatus = MutableStateFlow(PlaybackStatus())
     val playbackStatus = _playbackStatus.asStateFlow()
+
+    private val _currentPalette = MutableStateFlow(AlbumPalette())
+    val currentPalette = _currentPalette.asStateFlow()
+
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitialized = _isInitialized.asStateFlow()
+
+    val navigationMode: StateFlow<NavigationMode> = repository.navigationMode
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = NavigationMode.AUTO
+        )
 
     val uiState: StateFlow<MusicUiState> = combine(
         repository.allSongs,
@@ -89,11 +106,27 @@ class MusicViewModel(
         controllerFuture?.addListener({
             restorePlaybackPosition()
             updatePlaybackStatus()
+            checkInitialization()
         }, { it.run() })
 
         startPlaybackStatusPolling()
         restorePlaybackState()
         syncLibrary()
+        
+        // Track song changes for Palette
+        viewModelScope.launch {
+            playbackStatus.map { it.currentSongId }.distinctUntilChanged().collect { id ->
+                id?.let { updatePaletteForSong(it) }
+            }
+        }
+    }
+
+    private fun checkInitialization() {
+        viewModelScope.launch {
+            // Minimum boot time 700ms
+            delay(700)
+            _isInitialized.value = true
+        }
     }
 
     private fun restorePlaybackPosition() {
@@ -114,15 +147,63 @@ class MusicViewModel(
         }
     }
 
+    @androidx.annotation.OptIn(UnstableApi::class)
     private fun updatePlaybackStatus() {
-        controller?.let {
+        controller?.let { player ->
+            var bitrate: Int? = null
+            var sampleRate: Int? = null
+            var format: String? = null
+            var channels: Int? = null
+
+            val tracks = player.currentTracks
+            for (group in tracks.groups) {
+                if (group.isSelected) {
+                    val trackFormat = group.getTrackFormat(0)
+                    bitrate = if (trackFormat.bitrate > 0) trackFormat.bitrate else null
+                    sampleRate = if (trackFormat.sampleRate > 0) trackFormat.sampleRate else null
+                    format = trackFormat.sampleMimeType?.split("/")?.lastOrNull()?.uppercase()
+                    channels = if (trackFormat.channelCount > 0) trackFormat.channelCount else null
+                    break
+                }
+            }
+
             _playbackStatus.value = PlaybackStatus(
-                position = it.currentPosition,
-                duration = it.duration.coerceAtLeast(0L),
-                isPlaying = it.isPlaying,
-                currentSongId = it.currentMediaItem?.mediaId
+                position = player.currentPosition,
+                duration = player.duration.coerceAtLeast(0L),
+                isPlaying = player.isPlaying,
+                currentSongId = player.currentMediaItem?.mediaId,
+                bitrate = bitrate,
+                sampleRate = sampleRate,
+                format = format,
+                channels = channels
             )
         }
+    }
+
+    private suspend fun updatePaletteForSong(songId: String) {
+        val song = (uiState.value as? MusicUiState.Success)?.songs?.find { it.id.toString() == songId }
+        song?.artwork?.let { uri ->
+            _currentPalette.value = extractPalette(uri)
+        }
+    }
+
+    private suspend fun extractPalette(uri: android.net.Uri): AlbumPalette = withContext(Dispatchers.IO) {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            if (bitmap != null) {
+                val p = Palette.from(bitmap).generate()
+                return@withContext AlbumPalette(
+                    dominant = Color(p.getDominantColor(0xFF000000.toInt())),
+                    darkVibrant = Color(p.getDarkVibrantColor(0xFF1A1A1A.toInt())),
+                    muted = Color(p.getMutedColor(0xFF424242.toInt())),
+                    lightVibrant = Color(p.getLightVibrantColor(0xFFBDBDBD.toInt()))
+                )
+            }
+        } catch (e: Exception) {
+            // error
+        }
+        AlbumPalette()
     }
 
     private fun restorePlaybackState() {
@@ -244,6 +325,16 @@ class MusicViewModel(
     fun skipToPrevious() {
         controller?.seekToPrevious()
         updatePlaybackStatus()
+    }
+
+    fun toggleNavigationMode() {
+        val current = navigationMode.value
+        val next = when (current) {
+            NavigationMode.AUTO -> NavigationMode.EXPANDED
+            NavigationMode.EXPANDED -> NavigationMode.COMPACT
+            NavigationMode.COMPACT -> NavigationMode.AUTO
+        }
+        repository.setNavigationMode(next)
     }
 
     fun adjustVolume(delta: Int) {

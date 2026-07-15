@@ -1,71 +1,75 @@
-# Implementation Plan - Version 1.2: Real DAP Experience
+# Merge MusicOrganizer Functionality into MusicHome (The "Library Tools" Vision)
 
-Moving Music Home from a prototype to a real Digital Audio Player experience by connecting the EQ, improving navigation, ensuring persistent state, and adding appliance-like features.
+Merge the `MusicOrganizer` functionality into `MusicHome` as a built-in "maintenance workshop" called **Library Tools**. Instead of embedding a separate app, we will integrate its features (Scanner, Metadata Editor, Duplicate Engine) directly into the Music Home ecosystem, adopting its theme and navigation system.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Equalizer Connection**: I will be using Media3's custom commands to communicate EQ changes from the UI to the MediaSession. This avoids complex service binding logic while staying within the Media3 ecosystem.
->
-> **Audio Session Lifecycle**: `EqualizerManager` will be re-attached whenever the `ExoPlayer` instance or session changes to ensure settings persist across player re-creations.
->
-> **Back Button Behavior**: To achieve the "appliance" feel, I will modify `MainActivity` so that if music is playing, the back button navigates to the Player screen instead of exiting the app (unless already on the Player screen).
+> **Navigation Refactoring**: We are completely removing `Navigation3` from the organizer code. All organizer features (Scanner, Duplicate Finder, etc.) will be registered as top-level or secondary routes in the main `MusicHome` `NavHost`.
+
+> [!TIP]
+> **Theme Adoption**: The "Library Tools" will strictly follow the `WalkmanTheme` (Orange/Black/White) to ensure a seamless "built-in" feel.
 
 ## Proposed Changes
 
-### [Component] Audio Engine & Media3 Integration
+### 1. Build & Module Configuration
 
-#### [MODIFY] [MusicPlaybackService.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/media/src/main/kotlin/com/lemonsquad/musichome/media/player/MusicPlaybackService.kt)
-- Implement `MediaLibrarySession.Callback` to handle custom commands for Equalizer updates and Sleep Timer.
-- Handle "SET_EQ_BAND", "SET_EQ_ENABLED", and "SET_SLEEP_TIMER" commands.
-- Re-attach `EqualizerManager` on player initialization or transition if session ID changes.
+#### [MODIFY] [settings.gradle.kts](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/settings.gradle.kts)
+- Include the new `:organizer` module.
 
-#### [MODIFY] [EqualizerManager.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/media/src/main/kotlin/com/lemonsquad/musichome/media/player/EqualizerManager.kt)
-- Rename `initialize` to `attachToSession(sessionId: Int)`.
-- Ensure settings are reapplied when attaching to a new session.
+#### [MODIFY] [libs.versions.toml](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/gradle/libs.versions.toml)
+- Sync and add necessary dependencies (Room 2.7.0, Moshi, CameraX for potential future visual scanning).
 
-#### [NEW] [SleepTimerManager.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/media/src/main/kotlin/com/lemonsquad/musichome/media/player/SleepTimerManager.kt)
-- Logic for countdown and pausing playback.
+#### [NEW] [build.gradle.kts](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/organizer/build.gradle.kts)
+- Define `:organizer` as an Android Library.
 
-### [Component] Navigation & UI
+---
+
+### 2. Organizer Module Implementation (Feature-Based)
+
+Refactor `MusicOrganizer` code into functional engines:
+
+#### [NEW] [com.lemonsquad.musichome.organizer.scanner](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/organizer/src/main/kotlin/com/lemonsquad/musichome/organizer/scanner)
+- Refined `MediaScanner` that extracts metadata and populates the database.
+
+#### [NEW] [com.lemonsquad.musichome.organizer.duplicates](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/organizer/src/main/kotlin/com/lemonsquad/musichome/organizer/duplicates)
+- Dedicated `DuplicateEngine` logic extracted from the old ViewModel.
+
+#### [NEW] [com.lemonsquad.musichome.organizer.metadata](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/organizer/src/main/kotlin/com/lemonsquad/musichome/organizer/metadata)
+- Metadata Editor UI and logic, refactored to use `WalkmanTheme`.
+
+#### [NEW] [com.lemonsquad.musichome.organizer.data](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/organizer/src/main/kotlin/com/lemonsquad/musichome/organizer/data)
+- Organizer-specific Room database (keeping it separate for V1.0 as agreed).
+
+---
+
+### 3. Integration into MusicHome UI
 
 #### [MODIFY] [MusicHomeApp.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/MusicHomeApp.kt)
-- Update initial navigation to use `lastDestination` from the database.
-- Ensure the Player is easily accessible.
+- Add "Library Tools" to the `NavigationSuiteScaffold` items.
+- Define routes for:
+    - `library-tools` (Home/Dashboard of tools)
+    - `duplicate-finder`
+    - `metadata-editor/{songId}`
+    - `scanner-progress`
 
-#### [MODIFY] [MiniPlayer.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/components/MiniPlayer.kt)
-- Connect to `MusicViewModel.playbackStatus`.
-- Implement navigation to full player on click.
+#### [NEW] [LibraryToolsScreen.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/screens/LibraryToolsScreen.kt)
+- A central hub for the "maintenance workshop" features:
+    - Library Health Overview (Stats)
+    - Buttons for Scanner, Duplicate Finder, etc.
 
-#### [MODIFY] [SoundScreen.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/screens/SoundScreen.kt)
-- Implement data-driven EQ presets.
-- Connect sliders and toggle to `MusicViewModel`.
-
-### [Component] State & Persistence
-
-#### [MODIFY] [MusicRepository.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/core/src/main/kotlin/com/lemonsquad/musichome/core/domain/repository/MusicRepository.kt)
-- Add methods for `lastDestination`, `lastDestinationId`.
-- Add methods for `EqualizerSettings`.
-
-#### [MODIFY] [PlaybackStateEntity.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/core/src/main/kotlin/com/lemonsquad/musichome/core/data/database/PlaybackStateEntity.kt)
-- Add `lastDestination: String?` and `lastDestinationId: String?`.
-
-#### [MODIFY] [MusicViewModel.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/viewmodels/MusicViewModel.kt)
-- Implement EQ command sending.
-- Implement Sleep Timer trigger.
-- Handle state restoration (Queue vs Position).
-
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/app/src/main/kotlin/com/lemonsquad/musichome/MainActivity.kt)
-- Refine `onBackPressed` logic: if playing and not on player screen -> go to player.
+#### [MODIFY] [LibraryScreen.kt](file:///C:/Users/HP/AndroidStudioProjects/MusicHome/ui/src/main/kotlin/com/lemonsquad/musichome/ui/screens/LibraryScreen.kt)
+- Add "Edit Metadata" option to song/album context menus that navigates to the Organizer's editor.
 
 ## Verification Plan
 
 ### Automated Tests
-- Unit tests for `EqualizerManager` lifecycle.
-- Persistence tests for new `PlaybackStateEntity` fields.
+- Build verification for the new `:organizer` module.
+- Unit tests for the `DuplicateEngine` logic.
 
 ### Manual Verification
-1. **EQ Test**: Verify audible changes and persistence after app restart.
-2. **Persistence Test**: Reopen app to the same screen and same playback position.
-3. **Sleep Timer Test**: Set a 1-minute timer and verify music pauses.
-4. **Back Navigation**: Verify it returns to player when music is active.
+1. Open "Library Tools" from the main menu.
+2. Verify the "Walkman" styling is applied everywhere.
+3. Run a scan and check the "Library Health" stats.
+4. Find and merge duplicates.
+5. Edit a song's metadata from the Library screen and confirm it updates.
