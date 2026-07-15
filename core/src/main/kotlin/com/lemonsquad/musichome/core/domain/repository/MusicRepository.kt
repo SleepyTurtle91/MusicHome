@@ -25,7 +25,10 @@ interface MusicRepository {
     fun removeManualPath(path: String)
 
     suspend fun savePlaybackState(songId: Long?, positionMs: Long)
+    suspend fun saveLastDestination(destination: String, id: String? = null)
     suspend fun restorePlaybackState(): PlaybackQueue?
+    suspend fun getPlaybackPosition(): Long
+    suspend fun getLastDestination(): Pair<String, String?>?
 
     suspend fun syncLibrary()
     suspend fun refreshLibrary()

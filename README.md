@@ -1,6 +1,6 @@
 # Music Home 🎶🛡️
 
-**Music Home transforms Android devices into dedicated music appliances.** Rather than behaving like a traditional Android launcher, Music Home presents a dedicated, distraction-free music environment where playback is always the primary experience.
+**Music Home transforms Android devices into dedicated music appliances / DAP-style platforms.** Rather than behaving like a traditional Android launcher, Music Home presents a dedicated, distraction-free music environment where playback is always the primary experience.
 
 It strips away the distractions of a standard phone interface and replaces it with a high-fidelity, music-centric environment inspired by classic high-end audio equipment like Sony Walkmans, vintage amplifiers, and modern high-end DAPs (Digital Audio Players).
 
@@ -18,6 +18,19 @@ It strips away the distractions of a standard phone interface and replaces it wi
 
 ---
 
+## 💡 Why Music Home?
+
+Modern Android devices are designed around notifications, social media, and constant interaction. Music Home takes the opposite approach.
+
+It turns unused Android hardware into a single-purpose music machine:
+- **No distractions**: Just your music library.
+- **Offline-first playback**: No dependence on cloud services.
+- **Large album artwork**: Beautifully displayed metadata.
+- **Hardware-inspired controls**: Physical feel in a digital interface.
+- **Always ready**: Your device becomes a dedicated player, not a multitasker.
+
+---
+
 ## 🏛️ Philosophy
 
 Music Home is built on a simple idea: **Old Android devices deserve a second life.**
@@ -26,15 +39,15 @@ Instead of becoming e-waste, they can become beautiful, dedicated music players 
 
 ---
 
-## 🚧 Project Status (v1.1 "Direct Access")
+## 🚧 Project Status (v1.1 Development "Direct Access")
 
-Music Home has evolved into a comprehensive **Open-Source DAP Platform**.
+Music Home is approaching its first stable release and has evolved into a comprehensive **Open-Source DAP Platform**.
 
 **Current focus:**
 - [x] Home Launcher registration
 - [x] "Walkman Orange" Hardware UI Identity
 - [x] Real-time 16-band Spectrum Visualizer
-- [x] Professional Multi-band Equalizer
+- [x] Advanced Multi-band Equalizer
 - [x] Intelligent Artwork Caching (Persistent 512px JPGs)
 - [x] **Direct Access**: Manual path selection & recursive folder browsing
 - [x] **Appliance Memory**: Persistent playback position & queue recovery
@@ -42,13 +55,24 @@ Music Home has evolved into a comprehensive **Open-Source DAP Platform**.
 
 ---
 
-## 🎯 Target Devices
+## ⚡ Designed for Legacy Hardware
 
-Music Home is specifically optimized for dedicated "appliance" use cases on **Android 7.0+ (Nougat)**:
+Music Home is optimized for devices that are no longer useful as daily phones. The goal is smooth playback with minimal background activity.
+
+**Ideal targets:**
 - **Old Android Tablets**: Transform them into wall-mounted control panels or bedside hi-fi hubs.
 - **Spare Android Smartphones**: Create a permanent, distraction-free pocket player.
-- **Android-based DAPs**: A custom OS feel for offline-first listening.
+- **Retired DAP Hardware**: Give old specialized hardware a fresh, modern OS experience.
 - **Android TV Boxes**: Turn them into dedicated media hub appliances.
+
+---
+
+## 🎵 Supported Audio
+
+Currently supports standard Android Media3 codec formats:
+- **Lossless**: FLAC, WAV
+- **Lossy**: MP3, OGG, AAC
+- **Container**: M4A
 
 ---
 
@@ -71,16 +95,16 @@ The project follows a modularized **Clean Architecture** approach.
 ```mermaid
 graph TD
     subgraph "Music Home"
-        app[":app (Entry & Manifest)"]
-        ui[":ui (Compose & ViewModels)"]
-        core[":core (Business Logic & Data)"]
-        media[":media (Media3 Service)"]
+        app[":app (Entry)"]
+        ui[":ui (Presentation)"]
+        media[":media (Engine)"]
+        core[":core (Domain & Data)"]
 
         app --> ui
-        app --> core
         app --> media
-        ui --> media
+        app --> core
         ui --> core
+        ui --> media
         media --> core
     end
 ```
@@ -94,7 +118,7 @@ graph TD
 
 ## 🛠️ Tech Stack
 
-- **Language**: Kotlin 2.4.0
+- **Language**: Kotlin 2.x
 - **UI Framework**: Jetpack Compose (Material 3 Adaptive)
 - **Audio Processing**: Android AudioFX + Visualizer API
 - **Media Engine**: AndroidX Media3 / ExoPlayer

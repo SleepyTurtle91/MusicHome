@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lemonsquad.musichome.core.domain.model.EqualizerSettings
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
@@ -21,9 +22,10 @@ import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 
 @Composable
 fun SoundScreen(viewModel: MusicViewModel) {
-    // Placeholder data for the UI-only phase of EQ
+    val eqEnabled by viewModel.eqEnabled.collectAsState()
+    val eqBands by viewModel.eqBands.collectAsState()
+    
     val bands = listOf("60Hz", "230Hz", "910Hz", "3.6kHz", "14kHz")
-    var eqEnabled by remember { mutableStateOf(true) }
 
     Column(
         modifier = Modifier
@@ -55,7 +57,7 @@ fun SoundScreen(viewModel: MusicViewModel) {
             
             Switch(
                 checked = eqEnabled,
-                onCheckedChange = { eqEnabled = it },
+                onCheckedChange = { viewModel.setEqEnabled(it) },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = WalkmanOrange,
                     checkedTrackColor = WalkmanOrange.copy(alpha = 0.3f),
@@ -74,8 +76,17 @@ fun SoundScreen(viewModel: MusicViewModel) {
                 .weight(1f),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            bands.forEach { freq ->
-                EqSlider(label = freq, enabled = eqEnabled)
+            bands.forEachIndexed { index, freq ->
+                val level = eqBands[index] ?: 0
+                EqSlider(
+                    label = freq, 
+                    enabled = eqEnabled,
+                    value = (level + 1500) / 3000f, // Map -1500..1500 mB to 0..1f
+                    onValueChange = { newValue ->
+                        val newLevel = (newValue * 3000 - 1500).toInt()
+                        viewModel.setEqBandLevel(index, newLevel)
+                    }
+                )
             }
         }
 
@@ -92,21 +103,55 @@ fun SoundScreen(viewModel: MusicViewModel) {
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        val presets = listOf("FLAT", "ROCK", "POP", "JAZZ", "BASS BOOST")
+        val presets = EqualizerSettings.PRESETS.keys.toList()
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(presets) { preset ->
                 AssistChip(
-                    onClick = { /* TODO */ },
+                    onClick = { viewModel.applyEqPreset(preset) },
                     label = { Text(preset, fontSize = 10.sp) },
                     colors = AssistChipDefaults.assistChipColors(
-                        labelColor = if (preset == "FLAT") WalkmanOrange else Color.White,
-                        containerColor = if (preset == "FLAT") Color(0xFF1A1A1A) else Color.Transparent
+                        labelColor = Color.White,
+                        containerColor = Color.Transparent
                     ),
                     border = AssistChipDefaults.assistChipBorder(
                         enabled = true,
-                        borderColor = if (preset == "FLAT") WalkmanOrange else Color.DarkGray
+                        borderColor = WalkmanOrange
+                    ),
+                    shape = RoundedCornerShape(4.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Sleep Timer
+        Text(
+            text = "SLEEP TIMER",
+            color = MetallicGray,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        val timerOptions = listOf(0, 15, 30, 45, 60)
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(timerOptions) { mins ->
+                AssistChip(
+                    onClick = { viewModel.setSleepTimer(mins) },
+                    label = { Text(if (mins == 0) "OFF" else "$mins MIN", fontSize = 10.sp) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        labelColor = Color.White,
+                        containerColor = Color.Transparent
+                    ),
+                    border = AssistChipDefaults.assistChipBorder(
+                        enabled = true,
+                        borderColor = Color.DarkGray
                     ),
                     shape = RoundedCornerShape(4.dp)
                 )
@@ -116,9 +161,12 @@ fun SoundScreen(viewModel: MusicViewModel) {
 }
 
 @Composable
-fun EqSlider(label: String, enabled: Boolean) {
-    var sliderValue by remember { mutableStateOf(0.5f) }
-
+fun EqSlider(
+    label: String, 
+    enabled: Boolean,
+    value: Float,
+    onValueChange: (Float) -> Unit
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxHeight()
@@ -138,8 +186,8 @@ fun EqSlider(label: String, enabled: Boolean) {
             )
             
             Slider(
-                value = sliderValue,
-                onValueChange = { sliderValue = it },
+                value = value,
+                onValueChange = onValueChange,
                 enabled = enabled,
                 modifier = Modifier
                     .graphicsLayer(rotationZ = -90f)

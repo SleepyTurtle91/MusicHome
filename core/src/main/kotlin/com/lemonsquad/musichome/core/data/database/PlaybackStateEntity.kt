@@ -12,5 +12,7 @@ data class PlaybackStateEntity(
     val queueIndex: Int,
     val source: String?,
     val sourceName: String?,
+    val lastDestination: String?,
+    val lastDestinationId: String?,
     val updatedAt: Long
 )

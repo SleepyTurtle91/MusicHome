@@ -19,12 +19,30 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
+
 class MusicPlaybackService : MediaLibraryService() {
+
+    companion object {
+        const val COMMAND_SET_EQ_BAND = "com.lemonsquad.musichome.COMMAND_SET_EQ_BAND"
+        const val COMMAND_SET_EQ_ENABLED = "com.lemonsquad.musichome.COMMAND_SET_EQ_ENABLED"
+        const val COMMAND_SET_SLEEP_TIMER = "com.lemonsquad.musichome.COMMAND_SET_SLEEP_TIMER"
+        const val COMMAND_GET_EQ_STATE = "com.lemonsquad.musichome.COMMAND_GET_EQ_STATE"
+        
+        const val EXTRA_BAND_INDEX = "band_index"
+        const val EXTRA_BAND_LEVEL = "band_level"
+        const val EXTRA_ENABLED = "enabled"
+        const val EXTRA_DURATION_MS = "duration_ms"
+    }
 
     private var exoPlayer: ExoPlayer? = null
     private var mediaLibrarySession: MediaLibrarySession? = null
     private var equalizerManager: EqualizerManager? = null
     private var visualizerManager: VisualizerManager? = null
+    private var sleepTimerManager: SleepTimerManager? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     // Manual DI for now, matches MainActivity
@@ -58,10 +76,14 @@ class MusicPlaybackService : MediaLibraryService() {
 
         exoPlayer?.let { player ->
             equalizerManager = EqualizerManager()
-            equalizerManager?.initialize(player.audioSessionId)
+            equalizerManager?.attachToSession(player.audioSessionId)
             
             visualizerManager = VisualizerManager()
             visualizerManager?.initialize(player.audioSessionId)
+
+            sleepTimerManager = SleepTimerManager {
+                player.pause()
+            }
 
             player.addListener(object : Player.Listener {
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -69,9 +91,45 @@ class MusicPlaybackService : MediaLibraryService() {
                     repository.updateQueueIndex(index)
                     savePlaybackState()
                 }
+
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    equalizerManager?.attachToSession(audioSessionId)
+                    visualizerManager?.release()
+                    visualizerManager?.initialize(audioSessionId)
+                }
             })
 
-            mediaLibrarySession = MediaLibrarySession.Builder(this, player, object : MediaLibrarySession.Callback {})
+            val callback = object : MediaLibrarySession.Callback {
+                override fun onCustomCommand(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo,
+                    customCommand: SessionCommand,
+                    args: android.os.Bundle
+                ): ListenableFuture<SessionResult> {
+                    when (customCommand.customAction) {
+                        COMMAND_SET_EQ_BAND -> {
+                            val band = args.getInt(EXTRA_BAND_INDEX).toShort()
+                            val level = args.getInt(EXTRA_BAND_LEVEL).toShort()
+                            equalizerManager?.setBandLevel(band, level)
+                        }
+                        COMMAND_SET_EQ_ENABLED -> {
+                            val enabled = args.getBoolean(EXTRA_ENABLED)
+                            equalizerManager?.setEnabled(enabled)
+                        }
+                        COMMAND_SET_SLEEP_TIMER -> {
+                            val duration = args.getLong(EXTRA_DURATION_MS)
+                            if (duration > 0) {
+                                sleepTimerManager?.start(duration)
+                            } else {
+                                sleepTimerManager?.stop()
+                            }
+                        }
+                    }
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+            }
+
+            mediaLibrarySession = MediaLibrarySession.Builder(this, player, callback)
                 .build()
         }
     }

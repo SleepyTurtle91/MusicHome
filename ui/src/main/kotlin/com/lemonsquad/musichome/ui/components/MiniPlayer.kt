@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,17 +26,24 @@ import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 
 @Composable
-fun MiniPlayer(viewModel: MusicViewModel) {
+fun MiniPlayer(
+    viewModel: MusicViewModel,
+    onClick: () -> Unit
+) {
+    val playbackStatus by viewModel.playbackStatus.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
-    if (uiState is MusicUiState.Success) {
-        val currentSong = (uiState as MusicUiState.Success).songs.firstOrNull() ?: return
+    // Find the current song from the uiState based on playbackStatus
+    val currentSong = (uiState as? MusicUiState.Success)?.songs?.find { 
+        it.id.toString() == playbackStatus.currentSongId 
+    }
 
+    if (currentSong != null) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
-                .clickable { /* Navigate to Player logic */ },
+                .clickable { onClick() },
             color = Color(0xFF121212),
             tonalElevation = 8.dp
         ) {
@@ -72,12 +81,32 @@ fun MiniPlayer(viewModel: MusicViewModel) {
                     )
                 }
 
-                IconButton(onClick = { viewModel.pause() }) {
-                    Icon(
-                        Icons.Default.Pause,
-                        contentDescription = null,
-                        tint = WalkmanOrange
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { viewModel.skipToPrevious() }) {
+                        Icon(
+                            Icons.Default.SkipPrevious,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    IconButton(onClick = { 
+                        if (playbackStatus.isPlaying) viewModel.pause() else viewModel.resume() 
+                    }) {
+                        Icon(
+                            if (playbackStatus.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = WalkmanOrange
+                        )
+                    }
+
+                    IconButton(onClick = { viewModel.skipToNext() }) {
+                        Icon(
+                            Icons.Default.SkipNext,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
                 }
             }
         }

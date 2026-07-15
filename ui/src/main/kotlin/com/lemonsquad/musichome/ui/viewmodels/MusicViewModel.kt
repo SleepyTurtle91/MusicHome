@@ -22,6 +22,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.Bundle
+import androidx.media3.session.SessionCommand
 
 class MusicViewModel(
     val repository: MusicRepository,
@@ -31,6 +33,13 @@ class MusicViewModel(
     private val artworkCache = ArtworkCache(context)
     private val visualizerManager = VisualizerManager() // Note: Service should own the actual instance that is initialized with sessionId
     
+    // EQ State
+    private val _eqEnabled = MutableStateFlow(true)
+    val eqEnabled = _eqEnabled.asStateFlow()
+
+    private val _eqBands = MutableStateFlow(mapOf<Int, Int>())
+    val eqBands = _eqBands.asStateFlow()
+
     // For now, we'll expose the spectrum through the ViewModel if the Service isn't easily accessible for direct UI flow
     // In a production app, the Controller might provide this or we'd bind to the service
     private val _spectrum = MutableStateFlow(FloatArray(16) { 0f })
@@ -78,12 +87,22 @@ class MusicViewModel(
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         
         controllerFuture?.addListener({
+            restorePlaybackPosition()
             updatePlaybackStatus()
         }, { it.run() })
 
         startPlaybackStatusPolling()
         restorePlaybackState()
         syncLibrary()
+    }
+
+    private fun restorePlaybackPosition() {
+        viewModelScope.launch {
+            val position = repository.getPlaybackPosition()
+            if (position > 0) {
+                controller?.seekTo(position)
+            }
+        }
     }
 
     private fun startPlaybackStatusPolling() {
@@ -179,6 +198,44 @@ class MusicViewModel(
         controller?.play()
     }
 
+    fun setEqEnabled(enabled: Boolean) {
+        _eqEnabled.value = enabled
+        controller?.sendCustomCommand(
+            SessionCommand(MusicPlaybackService.COMMAND_SET_EQ_ENABLED, Bundle.EMPTY),
+            Bundle().apply { putBoolean(MusicPlaybackService.EXTRA_ENABLED, enabled) }
+        )
+    }
+
+    fun setEqBandLevel(bandIndex: Int, level: Int) {
+        val newBands = _eqBands.value.toMutableMap()
+        newBands[bandIndex] = level
+        _eqBands.value = newBands
+        
+        controller?.sendCustomCommand(
+            SessionCommand(MusicPlaybackService.COMMAND_SET_EQ_BAND, Bundle.EMPTY),
+            Bundle().apply {
+                putInt(MusicPlaybackService.EXTRA_BAND_INDEX, bandIndex)
+                putInt(MusicPlaybackService.EXTRA_BAND_LEVEL, level)
+            }
+        )
+    }
+
+    fun applyEqPreset(name: String) {
+        val levels = EqualizerSettings.PRESETS[name] ?: return
+        levels.forEachIndexed { index, level ->
+            setEqBandLevel(index, level)
+        }
+    }
+
+    fun setSleepTimer(minutes: Int) {
+        controller?.sendCustomCommand(
+            SessionCommand(MusicPlaybackService.COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY),
+            Bundle().apply {
+                putLong(MusicPlaybackService.EXTRA_DURATION_MS, minutes * 60 * 1000L)
+            }
+        )
+    }
+
     fun skipToNext() {
         controller?.seekToNext()
         updatePlaybackStatus()
@@ -222,6 +279,16 @@ class MusicViewModel(
 
     fun setDirectoryPicker(request: () -> Unit) {
         onDirectoryPickerRequest = request
+    }
+
+    fun saveLastDestination(route: String, id: String? = null) {
+        viewModelScope.launch {
+            repository.saveLastDestination(route, id)
+        }
+    }
+
+    suspend fun getLastDestination(): Pair<String, String?>? {
+        return repository.getLastDestination()
     }
 
     fun requestDirectoryPicker() {

@@ -116,6 +116,7 @@ class LocalMediaRepository(
 
     override suspend fun savePlaybackState(songId: Long?, positionMs: Long) {
         val queue = _currentQueue.value ?: return
+        val existing = dao.getPlaybackState()
         val state = PlaybackStateEntity(
             lastSongId = songId,
             positionMs = positionMs,
@@ -123,6 +124,28 @@ class LocalMediaRepository(
             queueIndex = queue.currentIndex,
             source = queue.source.name,
             sourceName = queue.sourceName,
+            lastDestination = existing?.lastDestination,
+            lastDestinationId = existing?.lastDestinationId,
+            updatedAt = System.currentTimeMillis()
+        )
+        dao.savePlaybackState(state)
+    }
+
+    override suspend fun saveLastDestination(destination: String, id: String?) {
+        val existing = dao.getPlaybackState()
+        val state = existing?.copy(
+            lastDestination = destination,
+            lastDestinationId = id,
+            updatedAt = System.currentTimeMillis()
+        ) ?: PlaybackStateEntity(
+            lastSongId = null,
+            positionMs = 0,
+            queueIds = "",
+            queueIndex = 0,
+            source = null,
+            sourceName = null,
+            lastDestination = destination,
+            lastDestinationId = id,
             updatedAt = System.currentTimeMillis()
         )
         dao.savePlaybackState(state)
@@ -130,6 +153,7 @@ class LocalMediaRepository(
 
     override suspend fun restorePlaybackState(): PlaybackQueue? {
         val state = dao.getPlaybackState() ?: return null
+        if (state.queueIds.isEmpty()) return null
         val ids = state.queueIds.split(",").mapNotNull { it.toLongOrNull() }
         if (ids.isEmpty()) return null
         
@@ -144,6 +168,15 @@ class LocalMediaRepository(
             source = state.source?.let { QueueSource.valueOf(it) } ?: QueueSource.ALL_SONGS,
             sourceName = state.sourceName
         )
+    }
+
+    override suspend fun getPlaybackPosition(): Long {
+        return dao.getPlaybackState()?.positionMs ?: 0L
+    }
+
+    override suspend fun getLastDestination(): Pair<String, String?>? {
+        val state = dao.getPlaybackState() ?: return null
+        return state.lastDestination?.let { it to state.lastDestinationId }
     }
 }
 

@@ -69,7 +69,7 @@ fun PlayerScreen(viewModel: MusicViewModel) {
                 
                 if (currentSong != null) {
                     if (isArtworkFocusMode) {
-                        ArtworkFocusLayout(currentSong, spectrum, playbackStatus, onExit = { isArtworkFocusMode = false })
+                        ArtworkFocusLayout(currentSong, spectrum, playbackStatus, viewModel, onExit = { isArtworkFocusMode = false })
                     } else {
                         if (isTablet && !isPortrait) {
                             TabletPlayerLayout(currentSong, spectrum, playbackStatus, viewModel, onFocusRequest = { isArtworkFocusMode = true })
@@ -371,18 +371,18 @@ fun ArtworkFocusLayout(
     currentSong: com.lemonsquad.musichome.core.domain.model.Song,
     spectrum: FloatArray,
     status: com.lemonsquad.musichome.ui.viewmodels.PlaybackStatus,
+    viewModel: MusicViewModel,
     onExit: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(PureBlack)
-            .clickable { onExit() }
     ) {
         AsyncImage(
             model = currentSong.artwork,
             contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().clickable { onExit() },
             contentScale = ContentScale.Crop,
             alpha = 0.6f
         )
@@ -396,6 +396,7 @@ fun ArtworkFocusLayout(
                         colors = listOf(Color.Transparent, PureBlack.copy(alpha = 0.8f))
                     )
                 )
+                .clickable { onExit() }
         )
 
         Column(
@@ -438,6 +439,32 @@ fun ArtworkFocusLayout(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Focus Mode Transport
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { viewModel.skipToPrevious() }) {
+                    Icon(Icons.Default.SkipPrevious, null, Modifier.size(48.dp), Color.White)
+                }
+                
+                IconButton(onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() }) {
+                    Icon(
+                        if (status.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, 
+                        null, 
+                        Modifier.size(64.dp), 
+                        WalkmanOrange
+                    )
+                }
+
+                IconButton(onClick = { viewModel.skipToNext() }) {
+                    Icon(Icons.Default.SkipNext, null, Modifier.size(48.dp), Color.White)
+                }
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -61,6 +62,15 @@ fun MusicHomeApp(
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())) }
     var batteryLevel by remember { mutableIntStateOf(0) }
+
+    val playbackStatus by musicViewModel.playbackStatus.collectAsState()
+
+    BackHandler(enabled = currentRoute != "player" && playbackStatus.isPlaying) {
+        navController.navigate("player") {
+            popUpTo(navController.graph.startDestinationId)
+            launchSingleTop = true
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -155,7 +165,10 @@ fun MusicHomeApp(
                 },
                 bottomBar = {
                     if (currentRoute != "player" && currentRoute != "album-detail" && currentRoute != null) {
-                        MiniPlayer(viewModel = musicViewModel)
+                        MiniPlayer(
+                            viewModel = musicViewModel,
+                            onClick = { navController.navigate("player") }
+                        )
                     }
                 }
             ) { innerPadding ->
