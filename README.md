@@ -12,9 +12,9 @@ It strips away the distractions of a standard phone interface and replaces it wi
 | :---: | :---: | :---: |
 | ![Library](docs/screenshots/library.png) | ![Player](docs/screenshots/player.png) | ![Queue](docs/screenshots/queue.png) |
 
-| Apps | Sound (EQ) |
-| :---: | :---: |
-| ![Apps](docs/screenshots/apps.png) | ![Sound](docs/screenshots/sound.png) |
+| Apps | Library Tools | Sound (EQ) |
+| :---: | :---: | :---: |
+| ![Apps](docs/screenshots/apps.png) | ![Tools](docs/screenshots/tools.png) | ![Sound](docs/screenshots/sound.png) |
 
 ---
 
@@ -39,9 +39,9 @@ Instead of becoming e-waste, they can become beautiful, dedicated music players 
 
 ---
 
-## 🚧 Project Status (v1.1 Development "Direct Access")
+## 🚧 Project Status (v1.3.0 "Library Tools")
 
-Music Home is approaching its first stable release and has evolved into a comprehensive **Open-Source DAP Platform**.
+Music Home has evolved into a comprehensive **Open-Source DAP Platform** with built-in maintenance capabilities.
 
 **Current focus:**
 - [x] Home Launcher registration
@@ -52,6 +52,7 @@ Music Home is approaching its first stable release and has evolved into a compre
 - [x] **Direct Access**: Manual path selection & recursive folder browsing
 - [x] **Appliance Memory**: Persistent playback position & queue recovery
 - [x] **Hardware Integration**: Physical volume interception & custom HUDs
+- [x] **Library Tools**: Built-in maintenance workshop (Scanner, Duplicates, Health)
 
 ---
 
@@ -138,6 +139,7 @@ graph TD
 - [x] **Adaptive Appliance Layouts** (Phone/Tablet/Focus modes)
 - [x] **Album artwork fetching & caching**
 - [x] **Folder browsing & Equalizer**
+- [x] **Library Maintenance Suite** (Duplicate Finder, Tag Editor)
 - [ ] **USB DAC support** (Direct bit-perfect output)
 - [ ] **Internet Radio integration** (Shoutcast/TuneIn)
 
