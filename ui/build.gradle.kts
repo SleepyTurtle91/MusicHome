@@ -45,6 +45,7 @@ dependencies {
     
     implementation(libs.coil.compose)
     implementation(libs.androidx.palette)
+    implementation(libs.phosphoricon.compose)
     
     implementation(libs.kotlinx.coroutines.android)
 }

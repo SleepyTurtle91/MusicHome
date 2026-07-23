@@ -4,8 +4,6 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lemonsquad.musichome.ui.icons.MusicHomeIcons
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 
 @Composable
@@ -43,8 +42,14 @@ fun VolumeHud(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
+                val icon = when {
+                    volume == 0 -> MusicHomeIcons.VolumeMute
+                    volume < maxVolume / 2 -> MusicHomeIcons.VolumeLow
+                    else -> MusicHomeIcons.VolumeHigh
+                }
+                
                 Icon(
-                    Icons.AutoMirrored.Filled.VolumeUp,
+                    icon,
                     contentDescription = null,
                     tint = WalkmanOrange,
                     modifier = Modifier.size(24.dp)

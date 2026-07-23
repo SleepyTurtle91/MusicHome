@@ -9,15 +9,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.*
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
@@ -55,6 +46,7 @@ import com.lemonsquad.musichome.ui.screens.MetadataEditorScreen
 import com.lemonsquad.musichome.ui.screens.ScannerProgressScreen
 import com.lemonsquad.musichome.core.domain.model.NavigationMode
 import com.lemonsquad.musichome.organizer.ui.LibraryToolsViewModel
+import com.lemonsquad.musichome.ui.icons.MusicHomeIcons
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.theme.WalkmanTheme
 import com.lemonsquad.musichome.ui.viewmodels.AppsViewModel
@@ -133,21 +125,22 @@ fun MusicHomeApp(
                     layoutType = navSuiteType,
                     navigationSuiteItems = {
                         val items = listOf(
-                            Triple("library", "Library", Icons.Default.LibraryMusic),
-                            Triple("player", "Player", Icons.Default.PlayArrow),
-                            Triple("queue", "Queue", Icons.AutoMirrored.Filled.QueueMusic),
-                            Triple("apps", "Apps", Icons.Default.Apps),
-                            Triple("tools", "Tools", Icons.Default.Build),
-                            Triple("sound", "Sound", Icons.Default.Tune),
-                            Triple("settings", "Settings", Icons.Default.Settings),
+                            NavigationItem("library", "Library", MusicHomeIcons.Library, MusicHomeIcons.LibraryActive),
+                            NavigationItem("player", "Player", MusicHomeIcons.Player, MusicHomeIcons.PlayerActive),
+                            NavigationItem("queue", "Queue", MusicHomeIcons.Queue, MusicHomeIcons.QueueActive),
+                            NavigationItem("apps", "Apps", MusicHomeIcons.Apps, MusicHomeIcons.AppsActive),
+                            NavigationItem("tools", "Tools", MusicHomeIcons.Tools, MusicHomeIcons.ToolsActive),
+                            NavigationItem("sound", "Sound", MusicHomeIcons.Sound, MusicHomeIcons.SoundActive),
+                            NavigationItem("settings", "Settings", MusicHomeIcons.Settings, MusicHomeIcons.SettingsActive),
                         )
 
-                        items.forEach { (route, label, icon) ->
+                        items.forEach { item ->
+                            val isSelected = currentRoute == item.route
                             item(
-                                selected = currentRoute == route,
+                                selected = isSelected,
                                 onClick = {
-                                    if (currentRoute != route) {
-                                        navController.navigate(route) {
+                                    if (currentRoute != item.route) {
+                                        navController.navigate(item.route) {
                                             popUpTo(navController.graph.startDestinationId) {
                                                 saveState = true
                                             }
@@ -158,20 +151,20 @@ fun MusicHomeApp(
                                 },
                                 icon = { 
                                     Icon(
-                                        icon, 
-                                        contentDescription = label,
-                                        tint = if (currentRoute == route) WalkmanOrange else Color.Gray,
-                                        modifier = if (currentRoute == route) Modifier.size(28.dp) else Modifier.size(24.dp)
+                                        if (isSelected) item.activeIcon else item.icon, 
+                                        contentDescription = item.label,
+                                        tint = if (isSelected) WalkmanOrange else Color.Gray,
+                                        modifier = if (isSelected) Modifier.size(28.dp) else Modifier.size(24.dp)
                                     ) 
                                 },
                                 label = { 
                                     if (navSuiteType != NavigationSuiteType.NavigationRail) {
                                         Text(
-                                            label.uppercase(), 
+                                            item.label.uppercase(), 
                                             fontSize = 10.sp, 
-                                            fontWeight = if (currentRoute == route) FontWeight.Bold else FontWeight.Medium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                             letterSpacing = 1.sp,
-                                            color = if (currentRoute == route) WalkmanOrange else Color.Gray
+                                            color = if (isSelected) WalkmanOrange else Color.Gray
                                         ) 
                                     }
                                 }
@@ -187,7 +180,7 @@ fun MusicHomeApp(
                                 navigationIcon = {
                                     if (navSuiteType != NavigationSuiteType.NavigationBar) {
                                         IconButton(onClick = { musicViewModel.toggleNavigationMode() }) {
-                                            Icon(Icons.Default.Menu, contentDescription = "Toggle Navigation", tint = Color.White)
+                                            Icon(MusicHomeIcons.Menu, contentDescription = "Toggle Navigation", tint = Color.White)
                                         }
                                     }
                                 },
@@ -330,21 +323,22 @@ fun MusicBottomBar(navController: NavHostController) {
         tonalElevation = 0.dp
     ) {
         val navItems = listOf(
-            Triple("library", "Library", Icons.Default.LibraryMusic),
-            Triple("player", "Player", Icons.Default.PlayArrow),
-            Triple("queue", "Queue", Icons.AutoMirrored.Filled.QueueMusic),
-            Triple("apps", "Apps", Icons.Default.Apps),
-            Triple("tools", "Tools", Icons.Default.Build),
-            Triple("sound", "Sound", Icons.Default.Tune),
-            Triple("settings", "Settings", Icons.Default.Settings)
+            NavigationItem("library", "Library", MusicHomeIcons.Library, MusicHomeIcons.LibraryActive),
+            NavigationItem("player", "Player", MusicHomeIcons.Player, MusicHomeIcons.PlayerActive),
+            NavigationItem("queue", "Queue", MusicHomeIcons.Queue, MusicHomeIcons.QueueActive),
+            NavigationItem("apps", "Apps", MusicHomeIcons.Apps, MusicHomeIcons.AppsActive),
+            NavigationItem("tools", "Tools", MusicHomeIcons.Tools, MusicHomeIcons.ToolsActive),
+            NavigationItem("sound", "Sound", MusicHomeIcons.Sound, MusicHomeIcons.SoundActive),
+            NavigationItem("settings", "Settings", MusicHomeIcons.Settings, MusicHomeIcons.SettingsActive)
         )
 
-        navItems.forEach { (route, label, icon) ->
+        navItems.forEach { item ->
+            val isSelected = currentDestination == item.route
             NavigationBarItem(
-                selected = currentDestination == route,
+                selected = isSelected,
                 onClick = {
-                    if (currentDestination != route) {
-                        navController.navigate(route) {
+                    if (currentDestination != item.route) {
+                        navController.navigate(item.route) {
                             popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
                             }
@@ -355,17 +349,17 @@ fun MusicBottomBar(navController: NavHostController) {
                 },
                 icon = { 
                     Icon(
-                        icon, 
-                        contentDescription = label,
-                        tint = if (currentDestination == route) WalkmanOrange else Color.Gray
+                        if (isSelected) item.activeIcon else item.icon, 
+                        contentDescription = item.label,
+                        tint = if (isSelected) WalkmanOrange else Color.Gray
                     ) 
                 },
                 label = { 
                     Text(
-                        label.uppercase(), 
+                        item.label.uppercase(), 
                         fontSize = 10.sp,
-                        color = if (currentDestination == route) WalkmanOrange else Color.Gray,
-                        fontWeight = if (currentDestination == route) FontWeight.Bold else FontWeight.Medium
+                        color = if (isSelected) WalkmanOrange else Color.Gray,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     ) 
                 },
                 colors = NavigationBarItemDefaults.colors(
@@ -379,3 +373,10 @@ fun MusicBottomBar(navController: NavHostController) {
         }
     }
 }
+
+private data class NavigationItem(
+    val route: String,
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val activeIcon: androidx.compose.ui.graphics.vector.ImageVector
+)

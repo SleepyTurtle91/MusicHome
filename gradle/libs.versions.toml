@@ -18,6 +18,7 @@ activityCompose = "1.10.1"
 navigationCompose = "2.8.7"
 coil = "2.7.0"
 palette = "1.0.0"
+phosphoricon = "1.0.5"
 retrofit = "2.12.0"
 converterMoshi = "2.12.0"
 accompanistPermissions = "0.37.3"
@@ -67,6 +68,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 androidx-palette = { group = "androidx.palette", name = "palette-ktx", version.ref = "palette" }
+phosphoricon-compose = { group = "io.github.dev778g-me", name = "phosphoricon-compose", version.ref = "phosphoricon" }
 
 # Organizer dependencies
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }

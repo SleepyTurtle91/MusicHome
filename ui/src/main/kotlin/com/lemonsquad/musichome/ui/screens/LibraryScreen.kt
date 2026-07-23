@@ -9,10 +9,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -31,6 +27,7 @@ import com.lemonsquad.musichome.core.domain.model.Album
 import com.lemonsquad.musichome.core.domain.model.Artist
 import com.lemonsquad.musichome.core.domain.model.Song
 import com.lemonsquad.musichome.ui.components.FolderBrowser
+import com.lemonsquad.musichome.ui.icons.MusicHomeIcons
 import com.lemonsquad.musichome.ui.theme.DarkSurface
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
@@ -158,14 +155,14 @@ fun FolderList(viewModel: MusicViewModel) {
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Folder, null, tint = WalkmanOrange, modifier = Modifier.size(32.dp))
+                        Icon(MusicHomeIcons.Folder, null, tint = WalkmanOrange, modifier = Modifier.size(32.dp))
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = folder.substringAfterLast("/"), color = Color.White, fontSize = 16.sp)
                             Text(text = folder, color = MetallicGray, fontSize = 12.sp, maxLines = 1)
                         }
                         IconButton(onClick = { viewModel.repository.removeManualPath(folder) }) {
-                            Icon(Icons.Default.Delete, null, tint = Color.Red)
+                            Icon(MusicHomeIcons.Delete, null, tint = Color.Red)
                         }
                     }
                 }
@@ -378,7 +375,7 @@ fun SongListItem(song: Song, onClick: () -> Unit, onEditMetadata: () -> Unit) {
         
         Box {
             IconButton(onClick = { showMenu = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "More", tint = MetallicGray)
+                Icon(MusicHomeIcons.More, contentDescription = "More", tint = MetallicGray)
             }
             DropdownMenu(
                 expanded = showMenu,

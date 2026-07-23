@@ -41,6 +41,12 @@ val totalScore = (metadataScore + artworkScore + uniquenessScore).toInt()
 - **Navigation**: All routes registered and accessible via the main UI.
 - **Data**: Organizer-specific database initialized and separated from the main playback database.
 
+## Release: v1.3.0
+
+- **Version Bumped**: App version updated to `1.3.0` (versionCode `4`).
+- **Changelog Created**: A new `CHANGELOG.md` file has been added to the root directory to track all "Library Tools" changes.
+- **GitHub Push**: All changes have been committed and pushed to the remote repository.
+
 ---
 > [!TIP]
 > You can now find the new "Library Tools" section in the main menu. Run a "System Scan" to populate the health dashboard and see your library score!

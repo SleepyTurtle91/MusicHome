@@ -10,9 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lemonsquad.musichome.ui.icons.MusicHomeIcons
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
@@ -120,7 +118,7 @@ fun AboutScreen(viewModel: MusicViewModel, appVersion: String) {
                         colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange),
                         shape = RoundedCornerShape(4.dp)
                     ) {
-                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(MusicHomeIcons.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("DOWNLOAD LATEST", fontWeight = FontWeight.Bold)
                     }
@@ -204,7 +202,7 @@ fun AboutCard(
                     modifier = Modifier.weight(1f)
                 )
                 if (onHeaderClick != null) {
-                    Icon(Icons.Default.ExpandMore, null, tint = MetallicGray, modifier = Modifier.size(16.dp))
+                    Icon(MusicHomeIcons.CaretDown, null, tint = MetallicGray, modifier = Modifier.size(16.dp))
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -257,9 +255,9 @@ fun ProjectLink(label: String, url: String) {
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.Link, null, tint = WalkmanOrange, modifier = Modifier.size(14.dp))
+        Icon(MusicHomeIcons.Link, null, tint = WalkmanOrange, modifier = Modifier.size(14.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(label, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = MetallicGray, modifier = Modifier.size(14.dp))
+        Icon(MusicHomeIcons.ExternalLink, null, tint = MetallicGray, modifier = Modifier.size(14.dp))
     }
 }

@@ -11,8 +11,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.lemonsquad.musichome.core.domain.model.Song
 import com.lemonsquad.musichome.ui.components.SpectrumVisualizer
+import com.lemonsquad.musichome.ui.icons.MusicHomeIcons
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
@@ -227,28 +226,28 @@ fun TabletPlayerLayout(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { viewModel.skipToPrevious() }, modifier = Modifier.size(72.dp)) {
-                    Icon(Icons.Default.SkipPrevious, null, Modifier.size(40.dp), Color.White)
+                    Icon(MusicHomeIcons.SkipBack, null, Modifier.size(40.dp), Color.White)
                 }
                 
                 Surface(
                     onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() },
-                    shape = RoundedCornerShape(44.dp),
+                    shape = RoundedCornerShape(50.dp),
                     color = WalkmanOrange,
-                    modifier = Modifier.size(88.dp),
+                    modifier = Modifier.size(100.dp),
                     shadowElevation = 8.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            if (status.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, 
+                            if (status.isPlaying) MusicHomeIcons.Pause else MusicHomeIcons.Play, 
                             null, 
-                            Modifier.size(48.dp), 
+                            Modifier.size(56.dp), 
                             Color.White
                         )
                     }
                 }
 
                 IconButton(onClick = { viewModel.skipToNext() }, modifier = Modifier.size(72.dp)) {
-                    Icon(Icons.Default.SkipNext, null, Modifier.size(40.dp), Color.White)
+                    Icon(MusicHomeIcons.SkipForward, null, Modifier.size(40.dp), Color.White)
                 }
             }
         }
@@ -379,13 +378,13 @@ fun PhonePlayerLayout(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HardwareButton(icon = Icons.Default.SkipPrevious, onClick = { viewModel.skipToPrevious() })
+                HardwareButton(icon = MusicHomeIcons.SkipBack, onClick = { viewModel.skipToPrevious() })
                 HardwareButton(
-                    icon = if (status.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    icon = if (status.isPlaying) MusicHomeIcons.Pause else MusicHomeIcons.Play,
                     onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() },
                     isPrimary = true
                 )
-                HardwareButton(icon = Icons.Default.SkipNext, onClick = { viewModel.skipToNext() })
+                HardwareButton(icon = MusicHomeIcons.SkipForward, onClick = { viewModel.skipToNext() })
             }
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -394,8 +393,8 @@ fun PhonePlayerLayout(
 
 @Composable
 fun HardwareButton(icon: ImageVector, onClick: () -> Unit, isPrimary: Boolean = false) {
-    val size = if (isPrimary) 88.dp else 72.dp
-    val iconSize = if (isPrimary) 44.dp else 36.dp
+    val size = if (isPrimary) 100.dp else 72.dp
+    val iconSize = if (isPrimary) 56.dp else 36.dp
     
     Surface(
         onClick = onClick,
@@ -472,11 +471,11 @@ fun ArtworkFocusLayout(
             Text(text = "${formatDuration(status.position)} / ${formatDuration(status.duration)}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(32.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.skipToPrevious() }) { Icon(Icons.Default.SkipPrevious, null, Modifier.size(48.dp), Color.White) }
+                IconButton(onClick = { viewModel.skipToPrevious() }) { Icon(MusicHomeIcons.SkipBack, null, Modifier.size(48.dp), Color.White) }
                 IconButton(onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() }) {
-                    Icon(if (status.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, Modifier.size(64.dp), WalkmanOrange)
+                    Icon(if (status.isPlaying) MusicHomeIcons.Pause else MusicHomeIcons.Play, null, Modifier.size(72.dp), WalkmanOrange)
                 }
-                IconButton(onClick = { viewModel.skipToNext() }) { Icon(Icons.Default.SkipNext, null, Modifier.size(48.dp), Color.White) }
+                IconButton(onClick = { viewModel.skipToNext() }) { Icon(MusicHomeIcons.SkipForward, null, Modifier.size(48.dp), Color.White) }
             }
         }
     }
