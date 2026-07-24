@@ -14,7 +14,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.lemonsquad.musichome.core.domain.model.EqualizerSettings
+import com.lemonsquad.musichome.ui.components.sound.GainSelector
+import com.lemonsquad.musichome.ui.components.sound.SignalChainCard
+import com.lemonsquad.musichome.ui.models.GainStage
+import com.lemonsquad.musichome.ui.models.OutputState
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
@@ -31,8 +37,10 @@ fun SoundScreen(viewModel: MusicViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(PureBlack)
+            .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
+        // Header LED & Title
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -40,20 +48,66 @@ fun SoundScreen(viewModel: MusicViewModel) {
         ) {
             Column {
                 Text(
-                    text = "SOUND SCULPTING",
+                    text = "SOUND",
                     color = Color.White,
-                    fontSize = 24.sp,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 4.sp
+                )
+                Text(
+                    text = "HARDWARE CALIBRATION",
+                    color = WalkmanOrange,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp
                 )
-                Text(
-                    text = "PRECISION EQUALIZER",
-                    color = WalkmanOrange,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 1.sp
-                )
             }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Trust Card / Signal Chain
+        val deviceState by viewModel.deviceState.collectAsState()
+        val playbackStatus = deviceState.playback
+        val sourceInfo = "${playbackStatus.format ?: "PCM"} ${playbackStatus.sampleRate?.let { "${it/1000}kHz" } ?: ""}"
+        
+        val outputName = when (deviceState.output) {
+            is OutputState.UsbDAC -> "USB DAC"
+            is OutputState.Bluetooth -> "Bluetooth"
+            is OutputState.Speaker -> "Speaker"
+            is OutputState.InternalDAC -> "Internal DAC"
+        }
+
+        SignalChainCard(
+            source = sourceInfo,
+            engine = "Direct Bypass",
+            output = outputName,
+            verificationStatus = deviceState.verification
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Gain Selector
+        GainSelector(
+            selectedGain = deviceState.gain.name,
+            onGainSelected = { viewModel.setGainStage(GainStage.valueOf(it)) }
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Precision Equalizer
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "PRECISION EQUALIZER",
+                color = MetallicGray,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
             
             Switch(
                 checked = eqEnabled,
@@ -61,19 +115,17 @@ fun SoundScreen(viewModel: MusicViewModel) {
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = WalkmanOrange,
                     checkedTrackColor = WalkmanOrange.copy(alpha = 0.3f),
-                    uncheckedThumbColor = MetallicGray,
-                    uncheckedTrackColor = Color.DarkGray
                 )
             )
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Tactile EQ Sliders
+        // Tactile EQ Sliders (Simplified in main view)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .height(200.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             bands.forEachIndexed { index, freq ->
@@ -81,7 +133,7 @@ fun SoundScreen(viewModel: MusicViewModel) {
                 EqSlider(
                     label = freq, 
                     enabled = eqEnabled,
-                    value = (level + 1500) / 3000f, // Map -1500..1500 mB to 0..1f
+                    value = (level + 1500) / 3000f, 
                     onValueChange = { newValue ->
                         val newLevel = (newValue * 3000 - 1500).toInt()
                         viewModel.setEqBandLevel(index, newLevel)
@@ -92,13 +144,57 @@ fun SoundScreen(viewModel: MusicViewModel) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Playback Processing
+        Text(
+            text = "PLAYBACK PROCESSING",
+            color = MetallicGray,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        CockpitSettingRow("Gapless Playback", true) { /* TODO */ }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Text(
+            text = "REPLAYGAIN MODE",
+            color = MetallicGray,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        val gainModes = listOf("OFF", "TRACK", "ALBUM")
+        var selectedGainMode by remember { mutableStateOf("ALBUM") }
+        
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            gainModes.forEach { mode ->
+                val isSelected = selectedGainMode == mode
+                AssistChip(
+                    onClick = { selectedGainMode = mode },
+                    label = { Text(mode, fontSize = 9.sp) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        labelColor = if (isSelected) WalkmanOrange else Color.White,
+                        containerColor = if (isSelected) WalkmanOrange.copy(alpha = 0.1f) else Color.Transparent
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         // Preset Selector
         Text(
-            text = "PRESETS",
+            text = "EQUALIZER PRESETS",
             color = MetallicGray,
-            fontSize = 12.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp
+            letterSpacing = 1.sp
         )
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -157,6 +253,25 @@ fun SoundScreen(viewModel: MusicViewModel) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CockpitSettingRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Color.White, fontSize = 12.sp)
+        Switch(
+            checked = checked, 
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = WalkmanOrange,
+                checkedTrackColor = WalkmanOrange.copy(alpha = 0.3f)
+            )
+        )
     }
 }
 

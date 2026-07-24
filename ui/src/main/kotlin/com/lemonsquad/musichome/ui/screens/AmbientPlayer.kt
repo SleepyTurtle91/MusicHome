@@ -21,6 +21,8 @@ import coil.compose.AsyncImage
 import com.lemonsquad.musichome.ui.components.SpectrumVisualizer
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
+import com.lemonsquad.musichome.ui.models.DeviceState
+import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -31,19 +33,44 @@ fun AmbientPlayer(
     viewModel: MusicViewModel,
     onExit: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val spectrum by viewModel.spectrum.collectAsState()
-    val playbackStatus by viewModel.playbackStatus.collectAsState()
+    val uiState by viewModel.uiState.collectAsState(initial = MusicUiState.Loading)
+    val spectrum by viewModel.spectrum.collectAsState(initial = FloatArray(16))
+    val deviceState by viewModel.deviceState.collectAsState()
     val palette by viewModel.currentPalette.collectAsState()
 
     var currentTime by remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
-    
-    val dominantAnimate by animateColorAsState(palette.dominant, animationSpec = tween(2000))
+    var isDimmed by remember { mutableStateOf(false) }
+
+    // Pixel Shifting logic for OLED protection
+    val shiftTransition = rememberInfiniteTransition(label = "PixelShift")
+    val shiftX by shiftTransition.animateFloat(
+        initialValue = -10f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(60000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ShiftX"
+    )
+    val shiftY by shiftTransition.animateFloat(
+        initialValue = -10f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(45000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ShiftY"
+    )
+
+    val dominantAnimate by animateColorAsState(palette.dominant, animationSpec = tween(2000), label = "Glow")
+    val ambientAlpha by animateFloatAsState(if (isDimmed) 0.3f else 1f, animationSpec = tween(2000), label = "Dim")
 
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-            delay(10000)
+            // Dim after 2 minutes in Ambient mode
+            delay(120000)
+            isDimmed = true
         }
     }
 
@@ -51,25 +78,31 @@ fun AmbientPlayer(
         modifier = Modifier
             .fillMaxSize()
             .background(PureBlack)
-            .clickable { onExit() }
+            .clickable { 
+                if (isDimmed) isDimmed = false else onExit() 
+            }
+            .alpha(ambientAlpha)
     ) {
         // Subtle background glow
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .offset(x = shiftX.dp, y = shiftY.dp)
                 .background(
                     Brush.radialGradient(
                         colors = listOf(dominantAnimate.copy(alpha = 0.15f), Color.Transparent),
-                        center = androidx.compose.ui.geometry.Offset(x = 500f, y = 500f) // Top left-ish
+                        center = androidx.compose.ui.geometry.Offset(x = 500f, y = 500f)
                     )
                 )
         )
 
         val successState = uiState as? com.lemonsquad.musichome.ui.viewmodels.MusicUiState.Success
-        val currentSong = successState?.songs?.find { it.id.toString() == playbackStatus.currentSongId }
+        val currentSong = successState?.songs?.find { it.id.toString() == deviceState.playback.currentSongId }
 
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(x = (shiftX / 2).dp, y = (shiftY / 2).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -83,9 +116,9 @@ fun AmbientPlayer(
                 modifier = Modifier.alpha(0.8f)
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
-
             if (currentSong != null) {
+                Spacer(modifier = Modifier.height(48.dp))
+                
                 // Floating Artwork
                 val infiniteTransition = rememberInfiniteTransition(label = "ArtworkFloat")
                 val floatOffset by infiniteTransition.animateValue(
@@ -125,6 +158,30 @@ fun AmbientPlayer(
                     fontSize = 18.sp,
                     maxLines = 1
                 )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // DAP Metrics
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${deviceState.playback.format ?: "PCM"} ${deviceState.playback.sampleRate?.let { "${it/1000}kHz" } ?: ""}",
+                        color = WalkmanOrange,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = if (deviceState.network.isWifiConnected) "WIFI ●" else "OFFLINE ○",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 10.sp
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "BAT ${deviceState.power.batteryPercent}%",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 10.sp
+                    )
+                }
             }
         }
 
@@ -137,7 +194,8 @@ fun AmbientPlayer(
                 .height(80.dp)
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 48.dp, start = 64.dp, end = 48.dp)
-                .alpha(0.5f)
+                .alpha(0.5f),
+            fpsLimit = deviceState.settings.visualizerFps
         )
     }
 }

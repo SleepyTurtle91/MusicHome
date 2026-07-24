@@ -24,6 +24,8 @@ import com.lemonsquad.musichome.ui.icons.MusicHomeIcons
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
+import com.lemonsquad.musichome.ui.models.DeviceState
+import com.lemonsquad.musichome.ui.models.OutputState
 import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 
@@ -31,6 +33,7 @@ import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 fun AboutScreen(viewModel: MusicViewModel, appVersion: String) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val deviceState by viewModel.deviceState.collectAsState()
     
     val githubUrl = "https://github.com/lemonsquad/musichome"
     val releasesUrl = "$githubUrl/releases"
@@ -133,6 +136,30 @@ fun AboutScreen(viewModel: MusicViewModel, appVersion: String) {
                     ProjectLink("GitHub Repository", githubUrl)
                     ProjectLink("MIT License", "$githubUrl/blob/main/LICENSE")
                     ProjectLink("Open Source Notice", "$githubUrl#readme")
+                }
+            }
+        }
+
+        // Hardware Manifest Card
+        item {
+            AboutCard(title = "HARDWARE MANIFEST") {
+                Column {
+                    SystemRow("Audio Engine", "Direct Bypass (Simulated)")
+                    SystemRow("Output Device", when(deviceState.output) {
+                        is OutputState.UsbDAC -> "USB DAC"
+                        is OutputState.Bluetooth -> "Bluetooth"
+                        is OutputState.InternalDAC -> "Internal DAC"
+                        is OutputState.Speaker -> "Phone Speaker"
+                    })
+                    SystemRow("Gain Stage", deviceState.gain.name)
+                    SystemRow("Verification", deviceState.verification.name)
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    SystemRow("Power", "${deviceState.power.batteryPercent}% ${if (deviceState.power.isCharging) "(Charging)" else ""}")
+                    SystemRow("Network", if (deviceState.network.isWifiConnected) "Wi-Fi Connected" else "Offline")
                 }
             }
         }

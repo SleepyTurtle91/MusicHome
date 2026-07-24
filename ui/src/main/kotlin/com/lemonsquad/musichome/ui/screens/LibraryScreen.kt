@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,34 +51,30 @@ fun LibraryScreen(
             .fillMaxSize()
             .background(PureBlack)
     ) {
-        // High-contrast, hardware-style tab row
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = PureBlack,
-            contentColor = WalkmanOrange,
-            edgePadding = 16.dp,
-            divider = {},
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = WalkmanOrange,
-                    height = 3.dp
-                )
-            }
+        // Hardware-style Contextual Filter Chips
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = {
-                        Text(
-                            title.uppercase(),
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                            letterSpacing = 2.sp
-                        )
-                    }
-                )
+                val isSelected = selectedTab == index
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (isSelected) WalkmanOrange else Color(0xFF151515))
+                        .clickable { selectedTab = index }
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = title.uppercase(),
+                        color = if (isSelected) Color.Black else Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
             }
         }
 
@@ -94,14 +89,38 @@ fun LibraryScreen(
                     FolderList(viewModel)
                 } else {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("NO MEDIA FOUND", color = MetallicGray, letterSpacing = 2.sp)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Text(
+                                "♪",
+                                fontSize = 48.sp,
+                                color = WalkmanOrange.copy(alpha = 0.3f)
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "LIBRARY EMPTY",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "No music storage detected. Connect your music folder to begin playback.",
+                                color = MetallicGray,
+                                fontSize = 12.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(32.dp))
                             Button(
                                 onClick = { selectedTab = 3 },
-                                colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange)
+                                colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange),
+                                shape = RoundedCornerShape(4.dp)
                             ) {
-                                Text("SETUP FOLDERS")
+                                Text("SETUP STORAGE", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             }
                         }
                     }

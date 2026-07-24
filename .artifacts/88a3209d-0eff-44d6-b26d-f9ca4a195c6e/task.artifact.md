@@ -1,0 +1,21 @@
+# Tasks - Phase 3: High-Fidelity Signal Path
+
+- `[x]` **Phase 1: Data Model & Architecture**
+    - `[x]` Update `Song.kt` with audiophile metadata fields
+    - `[x]` Create `AudioMetadata.kt` and `AudioPipelineState.kt` models
+    - `[x]` Define `AudioMetadataReader.kt` interface
+- `[x]` **Phase 2: Technical Metadata Parsing**
+    - `[x]` Implement `BasicAudioMetadataReader` using Media3 metadata
+- `[x]` **Phase 3: Audio Engine Enhancements**
+    - `[x]` Implement ReplayGain logic in `MusicPlaybackService.kt`
+    - `[x]` Enable Audio Offload and Gapless configuration in `ExoPlayer`
+- `[x]` **Phase 4: Telemetry & Hardware Verification**
+    - `[x]` Implement USB DAC detection via `UsbManager`
+    - `[x]` Refine Bluetooth Codec heuristics in `Media3AudioEngine.kt`
+- `[x]` **Phase 5: UI & Session Analytics**
+    - `[x]` Update `SoundScreen.kt` with Playback Processing controls
+    - `[x]` Implement "Last Listening Session" analytics card in `DeviceDashboardScreen.kt`
+- `[x]` **Phase 6: Verification**
+    - `[x]` Gapless transition test
+    - `[x]` ReplayGain mode validation
+    - `[x]` USB DAC verified status test

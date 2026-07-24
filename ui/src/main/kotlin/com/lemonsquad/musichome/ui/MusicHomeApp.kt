@@ -29,22 +29,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.lemonsquad.musichome.ui.components.BootScreen
-import com.lemonsquad.musichome.ui.components.MiniPlayer
-import com.lemonsquad.musichome.ui.components.VolumeHud
-import com.lemonsquad.musichome.ui.screens.AboutScreen
-import com.lemonsquad.musichome.ui.screens.AlbumDetailScreen
-import com.lemonsquad.musichome.ui.screens.AppsScreen
-import com.lemonsquad.musichome.ui.screens.LibraryScreen
-import com.lemonsquad.musichome.ui.screens.PlayerScreen
-import com.lemonsquad.musichome.ui.screens.QueueScreen
-import com.lemonsquad.musichome.ui.screens.SettingsScreen
-import com.lemonsquad.musichome.ui.screens.SoundScreen
-import com.lemonsquad.musichome.ui.screens.LibraryToolsScreen
-import com.lemonsquad.musichome.ui.screens.DuplicateFinderScreen
-import com.lemonsquad.musichome.ui.screens.MetadataEditorScreen
-import com.lemonsquad.musichome.ui.screens.ScannerProgressScreen
+import android.app.Activity
+import com.lemonsquad.musichome.ui.utils.findActivity
+import android.view.HapticFeedbackConstants
+import com.lemonsquad.musichome.ui.models.*
+import com.lemonsquad.musichome.ui.screens.*
+import com.lemonsquad.musichome.ui.components.*
+import com.lemonsquad.musichome.ui.theme.MusicDestination
+import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
 import com.lemonsquad.musichome.core.domain.model.NavigationMode
+import com.lemonsquad.musichome.core.domain.model.ScanState
 import com.lemonsquad.musichome.organizer.ui.LibraryToolsViewModel
 import com.lemonsquad.musichome.ui.icons.MusicHomeIcons
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
@@ -73,9 +67,9 @@ fun MusicHomeApp(
     var batteryLevel by remember { mutableIntStateOf(0) }
 
     val navigationMode by musicViewModel.navigationMode.collectAsState()
-    val playbackStatus by musicViewModel.playbackStatus.collectAsState()
+    val deviceState by musicViewModel.deviceState.collectAsState()
 
-    BackHandler(enabled = currentRoute != "player" && playbackStatus.isPlaying) {
+    BackHandler(enabled = currentRoute != "player" && deviceState.playback.isPlaying) {
         navController.navigate("player") {
             popUpTo(navController.graph.startDestinationId)
             launchSingleTop = true
@@ -124,22 +118,15 @@ fun MusicHomeApp(
                 NavigationSuiteScaffold(
                     layoutType = navSuiteType,
                     navigationSuiteItems = {
-                        val items = listOf(
-                            NavigationItem("library", "Library", MusicHomeIcons.Library, MusicHomeIcons.LibraryActive),
-                            NavigationItem("player", "Player", MusicHomeIcons.Player, MusicHomeIcons.PlayerActive),
-                            NavigationItem("queue", "Queue", MusicHomeIcons.Queue, MusicHomeIcons.QueueActive),
-                            NavigationItem("apps", "Apps", MusicHomeIcons.Apps, MusicHomeIcons.AppsActive),
-                            NavigationItem("tools", "Tools", MusicHomeIcons.Tools, MusicHomeIcons.ToolsActive),
-                            NavigationItem("sound", "Sound", MusicHomeIcons.Sound, MusicHomeIcons.SoundActive),
-                            NavigationItem("settings", "Settings", MusicHomeIcons.Settings, MusicHomeIcons.SettingsActive),
-                        )
-
-                        items.forEach { item ->
+                        MusicDestination.ALL.forEach { item ->
                             val isSelected = currentRoute == item.route
                             item(
                                 selected = isSelected,
                                 onClick = {
                                     if (currentRoute != item.route) {
+                                        // Hardware Haptic Feedback
+                                        context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                        
                                         navController.navigate(item.route) {
                                             popUpTo(navController.graph.startDestinationId) {
                                                 saveState = true
@@ -176,41 +163,56 @@ fun MusicHomeApp(
                 ) {
                     Scaffold(
                         topBar = {
-                            CenterAlignedTopAppBar(
-                                navigationIcon = {
-                                    if (navSuiteType != NavigationSuiteType.NavigationBar) {
-                                        IconButton(onClick = { musicViewModel.toggleNavigationMode() }) {
-                                            Icon(MusicHomeIcons.Menu, contentDescription = "Toggle Navigation", tint = Color.White)
+                            Column {
+                                CenterAlignedTopAppBar(
+                                    navigationIcon = {
+                                        if (navSuiteType != NavigationSuiteType.NavigationBar) {
+                                            IconButton(onClick = { musicViewModel.toggleNavigationMode() }) {
+                                                Icon(MusicHomeIcons.Menu, contentDescription = "Toggle Navigation", tint = Color.White)
+                                            }
                                         }
+                                    },
+                                    title = {
+                                        MusicHomeBrandHeader(
+                                            audioState = deviceState.audioState,
+                                            isWifiConnected = deviceState.network.isWifiConnected
+                                        )
+                                    },
+                                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                                        containerColor = Color.Black
+                                    ),
+                                    actions = {
+                                        Text(
+                                            "$currentTime | $batteryLevel%",
+                                            modifier = Modifier.padding(end = 16.dp),
+                                            fontSize = 12.sp,
+                                            color = Color.LightGray
+                                        )
                                     }
-                                },
-                                title = {
-                                    Text(
-                                        "WALKMAN",
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 4.sp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                                    containerColor = Color.Black
-                                ),
-                                actions = {
-                                    Text(
-                                        "$currentTime | $batteryLevel%",
-                                        modifier = Modifier.padding(end = 16.dp),
-                                        fontSize = 12.sp,
-                                        color = Color.LightGray
-                                    )
-                                }
-                            )
+                                )
+                                HorizontalDivider(
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    thickness = 0.5.dp
+                                )
+                            }
                         },
                         bottomBar = {
                             if (currentRoute != "player" && currentRoute != "album-detail" && currentRoute != null) {
-                                MiniPlayer(
-                                    viewModel = musicViewModel,
-                                    onClick = { navController.navigate("player") }
-                                )
+                                val uiState by musicViewModel.uiState.collectAsState()
+                                val currentSong = (uiState as? MusicUiState.Success)?.songs?.find { 
+                                    it.id.toString() == deviceState.playback.currentSongId 
+                                }
+                                
+                                if (currentSong != null) {
+                                    PlaybackStrip(
+                                        song = currentSong,
+                                        status = deviceState.playback,
+                                        onTogglePlay = { 
+                                            if (deviceState.playback.isPlaying) musicViewModel.pause() else musicViewModel.resume()
+                                        },
+                                        onClick = { navController.navigate("player") }
+                                    )
+                                }
                             }
                         }
                     ) { innerPadding ->
@@ -238,8 +240,7 @@ fun MusicHomeApp(
                                 QueueScreen(musicViewModel)
                             }
                             composable("player") { PlayerScreen(musicViewModel) }
-                            composable("apps") { AppsScreen(appsViewModel) }
-                            composable("tools") { 
+                            composable("explore") { 
                                 LibraryToolsScreen(
                                     viewModel = libraryToolsViewModel,
                                     onNavigateToDuplicates = { navController.navigate("duplicates") },
@@ -286,9 +287,17 @@ fun MusicHomeApp(
                                 }
                             }
                             composable("sound") { SoundScreen(musicViewModel) }
+                            composable("dashboard") {
+                                DeviceDashboardScreen(
+                                    viewModel = musicViewModel,
+                                    onBack = { navController.popBackStack() }
+                                )
+                            }
                             composable("settings") { 
                                 SettingsScreen(
-                                    onNavigateToAbout = { navController.navigate("about") }
+                                    viewModel = musicViewModel,
+                                    onNavigateToAbout = { navController.navigate("about") },
+                                    onNavigateToDashboard = { navController.navigate("dashboard") }
                                 ) 
                             }
                             composable("about") { AboutScreen(musicViewModel, appVersion) }

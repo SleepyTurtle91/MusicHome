@@ -3,7 +3,12 @@ package com.lemonsquad.musichome.ui.viewmodels
 import android.content.ComponentName
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -17,7 +22,6 @@ import com.lemonsquad.musichome.core.data.media.ArtworkCache
 import com.lemonsquad.musichome.core.domain.model.*
 import com.lemonsquad.musichome.core.domain.repository.MusicRepository
 import com.lemonsquad.musichome.media.player.MusicPlaybackService
-import com.lemonsquad.musichome.media.player.VisualizerManager
 import com.lemonsquad.musichome.ui.models.AlbumPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -26,17 +30,33 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.os.Bundle
 import androidx.media3.session.SessionCommand
-
+import com.lemonsquad.musichome.ui.engine.AudioVisualizer
+import com.lemonsquad.musichome.ui.engine.Media3AudioEngine
+import com.lemonsquad.musichome.ui.engine.*
+import com.lemonsquad.musichome.ui.models.*
+import com.lemonsquad.musichome.ui.models.DeviceMode
+import com.lemonsquad.musichome.ui.models.AudioSession
+import com.lemonsquad.musichome.ui.models.AudioCapabilities
 import androidx.media3.common.util.UnstableApi
 
 class MusicViewModel(
     val repository: MusicRepository,
     private val context: Context
-) : ViewModel() {
+) : ViewModel(), AudioVisualizer {
 
     private val artworkCache = ArtworkCache(context)
-    private val visualizerManager = VisualizerManager() // Note: Service should own the actual instance that is initialized with sessionId
     
+    // Audio Engine Components
+    @androidx.annotation.OptIn(UnstableApi::class)
+    private var audioEngine: Media3AudioEngine? = null
+    
+    // AudioVisualizer implementation
+    private val _spectrum = MutableStateFlow(FloatArray(16))
+    override val spectrum: Flow<FloatArray> = _spectrum.asStateFlow()
+    
+    private val _vuLevel = MutableStateFlow(0f)
+    override val vuLevel: Flow<Float> = _vuLevel.asStateFlow()
+
     // EQ State
     private val _eqEnabled = MutableStateFlow(true)
     val eqEnabled = _eqEnabled.asStateFlow()
@@ -44,13 +64,72 @@ class MusicViewModel(
     private val _eqBands = MutableStateFlow(mapOf<Int, Int>())
     val eqBands = _eqBands.asStateFlow()
 
-    // For now, we'll expose the spectrum through the ViewModel if the Service isn't easily accessible for direct UI flow
-    // In a production app, the Controller might provide this or we'd bind to the service
-    private val _spectrum = MutableStateFlow(FloatArray(16) { 0f })
-    val spectrum = _spectrum.asStateFlow()
-
     private val _playbackStatus = MutableStateFlow(PlaybackStatus())
     val playbackStatus = _playbackStatus.asStateFlow()
+
+    private val _gainStage = MutableStateFlow(GainStage.MID)
+    private val _deviceMode = MutableStateFlow(DeviceMode.LISTENING)
+    private val _deviceSettings = MutableStateFlow(DeviceSettings())
+    private val _networkState = MutableStateFlow(NetworkState())
+    private val _powerState = MutableStateFlow(PowerState())
+    private val _audioCapabilities = MutableStateFlow(AudioCapabilities())
+    private val _audioSession = MutableStateFlow(AudioSession())
+
+    @androidx.annotation.OptIn(UnstableApi::class)
+    val deviceState: StateFlow<DeviceState> = combine(
+        playbackStatus,
+        repository.scanState,
+        _gainStage,
+        _deviceMode,
+        _networkState,
+        _powerState,
+        _audioCapabilities,
+        _audioSession,
+        _deviceSettings
+    ) { flows ->
+        val playback = flows[0] as PlaybackStatus
+        val scan = flows[1] as ScanState
+        val gain = flows[2] as GainStage
+        val mode = flows[3] as DeviceMode
+        val network = flows[4] as NetworkState
+        val power = flows[5] as PowerState
+        val caps = flows[6] as AudioCapabilities
+        val session = flows[7] as AudioSession
+        val settings = flows[8] as DeviceSettings
+
+        // Telemetry driven logic
+        val isBluetooth = audioManager.isBluetoothA2dpOn
+        val output = when {
+            isBluetooth -> OutputState.Bluetooth
+            playback.sampleRate != null && (playback.sampleRate!! > 48000) -> OutputState.UsbDAC
+            else -> OutputState.InternalDAC
+        }
+        
+        val verification = when {
+            output == OutputState.UsbDAC && playback.sampleRate != null && (playback.sampleRate!! > 48000) -> 
+                VerificationStatus.VERIFIED
+            playback.isHighRes -> VerificationStatus.ESTIMATED
+            else -> VerificationStatus.UNKNOWN
+        }
+
+        DeviceState(
+            playback = playback,
+            output = output,
+            gain = gain,
+            mode = mode,
+            verification = verification,
+            capabilities = caps,
+            session = session,
+            settings = settings,
+            scanState = scan,
+            network = network,
+            power = power
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DeviceState()
+    )
 
     private val _currentPalette = MutableStateFlow(AlbumPalette())
     val currentPalette = _currentPalette.asStateFlow()
@@ -104,25 +183,41 @@ class MusicViewModel(
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         
         controllerFuture?.addListener({
+            controller?.let { mc ->
+                audioEngine = Media3AudioEngine(mc, audioManager, context, viewModelScope)
+            }
             restorePlaybackPosition()
             updatePlaybackStatus()
             checkInitialization()
         }, { it.run() })
 
         startPlaybackStatusPolling()
+        startDeviceMetricsPolling()
         restorePlaybackState()
         syncLibrary()
         
-        // Track song changes for Palette
+        // Track session changes
         viewModelScope.launch {
-            playbackStatus.map { it.currentSongId }.distinctUntilChanged().collect { id ->
-                id?.let { updatePaletteForSong(it) }
+            combine(playbackStatus, _deviceMode) { pb, mode -> pb to mode }.collect { (pb, mode) ->
+                _audioSession.value = AudioSession(
+                    trackId = pb.currentSongId,
+                    lastPosition = pb.position,
+                    lastTab = "player" // Simple tracking for now
+                )
             }
         }
     }
 
     private fun checkInitialization() {
         viewModelScope.launch {
+            // Volume Safety Limit
+            if (_deviceSettings.value.volumeSafetyEnabled) {
+                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                if (currentVol.toFloat() / maxVol > 0.7f) {
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (maxVol * 0.5f).toInt(), 0)
+                }
+            }
             // Minimum boot time 700ms
             delay(700)
             _isInitialized.value = true
@@ -145,6 +240,32 @@ class MusicViewModel(
                 delay(1000) // Update every second
             }
         }
+    }
+
+    private fun startDeviceMetricsPolling() {
+        viewModelScope.launch {
+            while (true) {
+                updateDeviceMetrics()
+                delay(10000) // Every 10s
+            }
+        }
+    }
+
+    private fun updateDeviceMetrics() {
+        // Battery
+        val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val batteryPercent = if (level >= 0 && scale > 0) (level * 100 / scale) else 0
+        val isCharging = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) == BatteryManager.BATTERY_STATUS_CHARGING
+        _powerState.value = PowerState(batteryPercent, isCharging)
+
+        // Network
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork = cm.activeNetwork
+        val caps = cm.getNetworkCapabilities(activeNetwork)
+        val isWifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        _networkState.value = NetworkState(isWifiConnected = isWifi)
     }
 
     @androidx.annotation.OptIn(UnstableApi::class)
@@ -272,11 +393,11 @@ class MusicViewModel(
     }
 
     fun pause() {
-        controller?.pause()
+        audioEngine?.pause()
     }
 
     fun resume() {
-        controller?.play()
+        audioEngine?.play()
     }
 
     fun setEqEnabled(enabled: Boolean) {
@@ -318,13 +439,18 @@ class MusicViewModel(
     }
 
     fun skipToNext() {
-        controller?.seekToNext()
+        audioEngine?.skipNext()
         updatePlaybackStatus()
     }
 
     fun skipToPrevious() {
-        controller?.seekToPrevious()
+        audioEngine?.skipPrevious()
         updatePlaybackStatus()
+    }
+
+    fun setGainStage(stage: GainStage) {
+        _gainStage.value = stage
+        // In a real DAP, this would send a command to the audio hardware/kernel
     }
 
     fun toggleNavigationMode() {
@@ -350,6 +476,18 @@ class MusicViewModel(
             delay(2000)
             _showVolumeHud.value = false
         }
+    }
+
+    fun seekTo(position: Long) {
+        audioEngine?.seekTo(position)
+    }
+
+    fun toggleDeviceMode(mode: DeviceMode) {
+        _deviceMode.value = mode
+    }
+
+    fun updateSettings(settings: DeviceSettings) {
+        _deviceSettings.value = settings
     }
 
     fun selectAlbum(album: Album) {

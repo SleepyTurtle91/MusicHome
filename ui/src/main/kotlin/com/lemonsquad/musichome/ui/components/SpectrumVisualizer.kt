@@ -16,46 +16,54 @@ import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 fun SpectrumVisualizer(
     spectrum: FloatArray,
     modifier: Modifier = Modifier,
-    color: Color = WalkmanOrange
+    color: Color = WalkmanOrange,
+    fpsLimit: Int = 30
 ) {
     // Smoothed spectrum values to avoid flickering
     val smoothedSpectrum = remember { FloatArray(16) { 0f } }
     
-    // Using a derived state to ensure we only update when spectrum changes
-    // and to apply basic smoothing
+    // FPS Throttling logic
+    var lastFrameTime by remember { mutableLongStateOf(0L) }
+    val frameDuration = 1000L / fpsLimit
+
     val displayedSpectrum = remember(spectrum) {
-        for (i in spectrum.indices) {
-            // Very basic smoothing: 80% current, 20% target
-            smoothedSpectrum[i] = smoothedSpectrum[i] * 0.2f + spectrum[i] * 0.8f
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastFrameTime >= frameDuration) {
+            lastFrameTime = currentTime
+            for (i in spectrum.indices) {
+                smoothedSpectrum[i] = smoothedSpectrum[i] * 0.3f + spectrum[i] * 0.7f
+            }
         }
         smoothedSpectrum.copyOf()
     }
 
     Canvas(modifier = modifier) {
         val barCount = displayedSpectrum.size
-        val spacing = 4.dp.toPx()
+        val spacing = 2.dp.toPx() // Thinner spacing
         val totalSpacing = spacing * (barCount - 1)
         val barWidth = (size.width - totalSpacing) / barCount
         
-        val gradient = Brush.verticalGradient(
-            colors = listOf(
-                color,
-                color.copy(alpha = 0.3f)
-            )
-        )
+        val segmentHeight = 2.dp.toPx()
+        val segmentSpacing = 1.dp.toPx()
 
         for (i in displayedSpectrum.indices) {
-            val magnitude = displayedSpectrum[i]
+            val magnitude = displayedSpectrum[i].coerceIn(0f, 1f)
             val barHeight = size.height * magnitude
             
-            drawRect(
-                brush = gradient,
-                topLeft = Offset(
-                    x = i * (barWidth + spacing),
-                    y = size.height - barHeight
-                ),
-                size = Size(barWidth, barHeight)
-            )
+            // Draw segmented bars for "Hardware" feel
+            var currentY = size.height
+            while (currentY > size.height - barHeight) {
+                val alpha = (currentY / size.height).coerceIn(0.3f, 1f)
+                drawRect(
+                    color = color.copy(alpha = alpha),
+                    topLeft = Offset(
+                        x = i * (barWidth + spacing),
+                        y = currentY - segmentHeight
+                    ),
+                    size = Size(barWidth, segmentHeight)
+                )
+                currentY -= (segmentHeight + segmentSpacing)
+            }
         }
     }
 }

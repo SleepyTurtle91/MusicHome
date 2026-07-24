@@ -1,13 +1,13 @@
 package com.lemonsquad.musichome.ui.screens
 
-import android.content.res.Configuration
+import android.util.Log
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,10 +19,12 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -30,51 +32,82 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.lemonsquad.musichome.core.domain.model.Song
 import com.lemonsquad.musichome.ui.components.SpectrumVisualizer
+import com.lemonsquad.musichome.ui.components.VUMeter
+import com.lemonsquad.musichome.ui.components.sound.SignalChainCard
 import com.lemonsquad.musichome.ui.icons.MusicHomeIcons
+import com.lemonsquad.musichome.ui.models.DeviceState
+import com.lemonsquad.musichome.ui.models.VerificationStatus
 import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
-import com.lemonsquad.musichome.ui.viewmodels.PlaybackStatus
+import com.lemonsquad.musichome.ui.utils.findActivity
 import kotlinx.coroutines.delay
+
+enum class VisualizerMode {
+    SPECTRUM, VU_METER, OFF
+}
 
 @Composable
 fun PlayerScreen(viewModel: MusicViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
-    val spectrum by viewModel.spectrum.collectAsState()
-    val playbackStatus by viewModel.playbackStatus.collectAsState()
+    val uiState by viewModel.uiState.collectAsState(initial = MusicUiState.Loading)
+    val spectrum by viewModel.spectrum.collectAsState(initial = FloatArray(16))
+    val deviceState by viewModel.deviceState.collectAsState()
     val palette by viewModel.currentPalette.collectAsState()
     
     val configuration = LocalConfiguration.current
-    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+    val context = LocalContext.current
+    val isPortrait = configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
     val isTablet = configuration.screenWidthDp >= 600
     
     var isArtworkFocusMode by remember { mutableStateOf(false) }
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showAmbientMode by remember { mutableStateOf(false) }
+    var showSignalChain by remember { mutableStateOf(false) }
+    var visualizerMode by remember { mutableStateOf(VisualizerMode.SPECTRUM) }
 
     val dominantAnimate by animateColorAsState(palette.dominant, animationSpec = tween(1000), label = "Dominant")
     val darkVibrantAnimate by animateColorAsState(palette.darkVibrant, animationSpec = tween(1000), label = "Vibrant")
 
-    LaunchedEffect(lastInteractionTime, playbackStatus.isPlaying) {
-        if (playbackStatus.isPlaying) {
+    LaunchedEffect(lastInteractionTime, deviceState.playback.isPlaying) {
+        if (deviceState.playback.isPlaying && deviceState.mode != com.lemonsquad.musichome.ui.models.DeviceMode.HARDWARE_LOCKED) {
             delay(30000)
             showAmbientMode = true
         }
     }
 
     if (showAmbientMode) {
-        AmbientPlayer(viewModel = viewModel, onExit = {
-            showAmbientMode = false
-            lastInteractionTime = System.currentTimeMillis()
-        })
+        AmbientPlayer(
+            viewModel = viewModel,
+            onExit = {
+                showAmbientMode = false
+                lastInteractionTime = System.currentTimeMillis()
+            }
+        )
     } else {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
-                    detectTapGestures { lastInteractionTime = System.currentTimeMillis() }
+                    detectTapGestures(
+                        onTap = { lastInteractionTime = System.currentTimeMillis() },
+                        onDoubleTap = {
+                            Log.d("PlayerScreen", "Gesture: Double Tap (Focus Mode)")
+                            isArtworkFocusMode = !isArtworkFocusMode
+                            context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                        },
+                        onLongPress = {
+                            Log.d("PlayerScreen", "Gesture: Long Press (Hardware Lock)")
+                            viewModel.toggleDeviceMode(
+                                if (deviceState.mode == com.lemonsquad.musichome.ui.models.DeviceMode.HARDWARE_LOCKED) 
+                                    com.lemonsquad.musichome.ui.models.DeviceMode.LISTENING 
+                                else 
+                                    com.lemonsquad.musichome.ui.models.DeviceMode.HARDWARE_LOCKED
+                            )
+                            context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        }
+                    )
                 }
                 .background(
                     Brush.verticalGradient(
@@ -99,20 +132,75 @@ fun PlayerScreen(viewModel: MusicViewModel) {
                     )
                 }
                 is MusicUiState.Success -> {
-                    val currentSong = state.songs.find { it.id.toString() == playbackStatus.currentSongId } ?: state.songs.firstOrNull()
+                    val currentSong = state.songs.find { it.id.toString() == deviceState.playback.currentSongId } ?: state.songs.firstOrNull()
                     
                     if (currentSong != null) {
                         if (isArtworkFocusMode) {
-                            ArtworkFocusLayout(currentSong, spectrum, playbackStatus, viewModel, darkVibrantAnimate, onExit = { isArtworkFocusMode = false })
+                            ArtworkFocusLayout(currentSong, spectrum, deviceState, viewModel, darkVibrantAnimate, onExit = { isArtworkFocusMode = false })
                         } else {
                             if (isTablet && !isPortrait) {
-                                TabletPlayerLayout(currentSong, spectrum, playbackStatus, viewModel, darkVibrantAnimate, onFocusRequest = { isArtworkFocusMode = true })
+                                TabletPlayerLayout(
+                                    currentSong, 
+                                    spectrum, 
+                                    deviceState, 
+                                    viewModel, 
+                                    darkVibrantAnimate, 
+                                    onFocusRequest = { isArtworkFocusMode = true },
+                                    onShowSignalChain = { showSignalChain = true },
+                                    visualizerMode = visualizerMode,
+                                    onToggleVisualizer = {
+                                        visualizerMode = when(visualizerMode) {
+                                            VisualizerMode.SPECTRUM -> VisualizerMode.VU_METER
+                                            VisualizerMode.VU_METER -> VisualizerMode.OFF
+                                            VisualizerMode.OFF -> VisualizerMode.SPECTRUM
+                                        }
+                                    }
+                                )
                             } else {
-                                PhonePlayerLayout(currentSong, spectrum, playbackStatus, viewModel, darkVibrantAnimate)
+                                PhonePlayerLayout(
+                                    currentSong, 
+                                    spectrum, 
+                                    deviceState, 
+                                    viewModel, 
+                                    darkVibrantAnimate,
+                                    onShowSignalChain = { showSignalChain = true },
+                                    visualizerMode = visualizerMode,
+                                    onToggleVisualizer = {
+                                        visualizerMode = when(visualizerMode) {
+                                            VisualizerMode.SPECTRUM -> VisualizerMode.VU_METER
+                                            VisualizerMode.VU_METER -> VisualizerMode.OFF
+                                            VisualizerMode.OFF -> VisualizerMode.SPECTRUM
+                                        }
+                                    }
+                                )
                             }
                         }
                     }
                 }
+            }
+
+            if (showSignalChain) {
+                val status = deviceState.playback
+                val sourceInfo = "${status.format ?: "PCM"} ${status.sampleRate?.let { "${it/1000}kHz" } ?: ""}"
+                AlertDialog(
+                    onDismissRequest = { showSignalChain = false },
+                    title = { Text("AUDIO SIGNAL CHAIN", fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+                    text = {
+                        SignalChainCard(
+                            source = sourceInfo,
+                            engine = "Direct Bypass",
+                            output = deviceState.output.javaClass.simpleName.replace("OutputState$", ""),
+                            verificationStatus = deviceState.verification
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showSignalChain = false }) {
+                            Text("CLOSE", color = WalkmanOrange)
+                        }
+                    },
+                    containerColor = Color(0xFF151515),
+                    titleContentColor = Color.White
+                )
             }
         }
     }
@@ -120,13 +208,17 @@ fun PlayerScreen(viewModel: MusicViewModel) {
 
 @Composable
 fun TabletPlayerLayout(
-    currentSong: com.lemonsquad.musichome.core.domain.model.Song,
+    currentSong: Song,
     spectrum: FloatArray,
-    status: com.lemonsquad.musichome.ui.viewmodels.PlaybackStatus,
+    deviceState: DeviceState,
     viewModel: MusicViewModel,
     accentColor: Color,
-    onFocusRequest: () -> Unit
+    onFocusRequest: () -> Unit,
+    onShowSignalChain: () -> Unit,
+    visualizerMode: VisualizerMode,
+    onToggleVisualizer: () -> Unit
 ) {
+    val status = deviceState.playback
     Row(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -154,16 +246,25 @@ fun TabletPlayerLayout(
                 )
             }
             
-            SpectrumVisualizer(
-                spectrum = spectrum,
-                color = accentColor,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
-                    .padding(horizontal = 48.dp, vertical = 24.dp)
+                    .height(100.dp)
                     .align(Alignment.BottomCenter)
-                    .alpha(0.6f)
-            )
+                    .clickable { onToggleVisualizer() }
+                    .padding(horizontal = 48.dp, vertical = 24.dp)
+            ) {
+                when (visualizerMode) {
+                    VisualizerMode.SPECTRUM -> SpectrumVisualizer(
+                        spectrum = spectrum, 
+                        color = accentColor, 
+                        modifier = Modifier.fillMaxSize().alpha(0.6f),
+                        fpsLimit = deviceState.settings.visualizerFps
+                    )
+                    VisualizerMode.VU_METER -> VUMeter(magnitude = spectrum.maxOrNull() ?: 0f, color = accentColor, modifier = Modifier.fillMaxSize().alpha(0.6f))
+                    VisualizerMode.OFF -> {}
+                }
+            }
         }
 
         Column(
@@ -175,14 +276,19 @@ fun TabletPlayerLayout(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = currentSong.title.uppercase(),
-                        color = Color.White,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.sp,
-                        lineHeight = 40.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Device LED in UI
+                        Box(modifier = Modifier.size(8.dp).background(deviceState.audioState.ledColor, CircleShape))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = currentSong.title.uppercase(),
+                            color = Color.White,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 2.sp,
+                            lineHeight = 40.sp
+                        )
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -193,10 +299,10 @@ fun TabletPlayerLayout(
                             letterSpacing = 1.sp
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        QualityBadge(status)
+                        QualityBadge(deviceState.verification, onClick = onShowSignalChain)
                     }
                 }
-                AudioInfoPanel(status)
+                AudioInfoPanel(deviceState)
             }
             
             Spacer(modifier = Modifier.height(64.dp))
@@ -229,22 +335,11 @@ fun TabletPlayerLayout(
                     Icon(MusicHomeIcons.SkipBack, null, Modifier.size(40.dp), Color.White)
                 }
                 
-                Surface(
+                HardwareButton(
+                    icon = if (status.isPlaying) MusicHomeIcons.Pause else MusicHomeIcons.Play,
                     onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() },
-                    shape = RoundedCornerShape(50.dp),
-                    color = WalkmanOrange,
-                    modifier = Modifier.size(100.dp),
-                    shadowElevation = 8.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            if (status.isPlaying) MusicHomeIcons.Pause else MusicHomeIcons.Play, 
-                            null, 
-                            Modifier.size(56.dp), 
-                            Color.White
-                        )
-                    }
-                }
+                    isPrimary = true
+                )
 
                 IconButton(onClick = { viewModel.skipToNext() }, modifier = Modifier.size(72.dp)) {
                     Icon(MusicHomeIcons.SkipForward, null, Modifier.size(40.dp), Color.White)
@@ -258,10 +353,14 @@ fun TabletPlayerLayout(
 fun PhonePlayerLayout(
     currentSong: Song,
     spectrum: FloatArray,
-    status: PlaybackStatus,
+    deviceState: DeviceState,
     viewModel: MusicViewModel,
-    accentColor: Color
+    accentColor: Color,
+    onShowSignalChain: () -> Unit,
+    visualizerMode: VisualizerMode,
+    onToggleVisualizer: () -> Unit
 ) {
+    val status = deviceState.playback
     Column(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -302,7 +401,10 @@ fun PhonePlayerLayout(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                QualityBadge(status)
+                // Device LED in UI
+                Box(modifier = Modifier.size(6.dp).background(deviceState.audioState.ledColor, CircleShape))
+                Spacer(modifier = Modifier.width(12.dp))
+                QualityBadge(deviceState.verification, onClick = onShowSignalChain)
             }
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -329,14 +431,23 @@ fun PhonePlayerLayout(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            SpectrumVisualizer(
-                spectrum = spectrum,
-                color = accentColor,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
-                    .alpha(0.8f)
-            )
+                    .clickable { onToggleVisualizer() }
+            ) {
+                when (visualizerMode) {
+                    VisualizerMode.SPECTRUM -> SpectrumVisualizer(
+                        spectrum = spectrum, 
+                        color = accentColor, 
+                        modifier = Modifier.fillMaxSize().alpha(0.8f),
+                        fpsLimit = deviceState.settings.visualizerFps
+                    )
+                    VisualizerMode.VU_METER -> VUMeter(magnitude = spectrum.maxOrNull() ?: 0f, color = accentColor, modifier = Modifier.fillMaxSize().alpha(0.8f))
+                    VisualizerMode.OFF -> {}
+                }
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -378,13 +489,22 @@ fun PhonePlayerLayout(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HardwareButton(icon = MusicHomeIcons.SkipBack, onClick = { viewModel.skipToPrevious() })
+                HardwareButton(
+                    icon = MusicHomeIcons.SkipBack, 
+                    onClick = { viewModel.skipToPrevious() },
+                    onLongPress = { isForward ->
+                        // Simplified seek loop in UI for Phase 2.75
+                    }
+                )
                 HardwareButton(
                     icon = if (status.isPlaying) MusicHomeIcons.Pause else MusicHomeIcons.Play,
                     onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() },
                     isPrimary = true
                 )
-                HardwareButton(icon = MusicHomeIcons.SkipForward, onClick = { viewModel.skipToNext() })
+                HardwareButton(
+                    icon = MusicHomeIcons.SkipForward, 
+                    onClick = { viewModel.skipToNext() }
+                )
             }
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -392,32 +512,61 @@ fun PhonePlayerLayout(
 }
 
 @Composable
-fun HardwareButton(icon: ImageVector, onClick: () -> Unit, isPrimary: Boolean = false) {
-    val size = if (isPrimary) 100.dp else 72.dp
-    val iconSize = if (isPrimary) 56.dp else 36.dp
+fun HardwareButton(
+    icon: ImageVector, 
+    onClick: () -> Unit, 
+    isPrimary: Boolean = false,
+    onLongPress: ((Boolean) -> Unit)? = null
+) {
+    val size = if (isPrimary) 84.dp else 68.dp
+    val iconSize = if (isPrimary) 48.dp else 32.dp
+    val context = LocalContext.current
     
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (isPressed) 0.92f else 1f, label = "PressScale")
+
     Surface(
-        onClick = onClick,
+        modifier = Modifier
+            .size(size)
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        val pressHaptic = if (isPrimary) HapticFeedbackConstants.CLOCK_TICK else HapticFeedbackConstants.VIRTUAL_KEY
+                        context.findActivity()?.window?.decorView?.performHapticFeedback(pressHaptic)
+                    },
+                    onTap = { onClick() },
+                    onLongPress = {
+                        onLongPress?.invoke(true) // Just a trigger for now
+                    }
+                )
+            },
         shape = CircleShape,
         color = if (isPrimary) WalkmanOrange else Color(0xFF1A1A1A),
-        modifier = Modifier.size(size),
-        shadowElevation = 8.dp,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        shadowElevation = if (isPressed) 2.dp else 8.dp,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = if (isPressed) 0.2f else 0.1f))
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(iconSize), tint = Color.White)
+            Icon(
+                imageVector = icon, 
+                contentDescription = null, 
+                modifier = Modifier.size(iconSize), 
+                tint = if (isPressed) Color.White else Color.White.copy(alpha = 0.9f)
+            )
         }
     }
 }
 
 @Composable
-fun AudioInfoPanel(status: PlaybackStatus) {
+fun AudioInfoPanel(state: DeviceState) {
+    val status = state.playback
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         HorizontalDivider(modifier = Modifier.width(24.dp), thickness = 1.dp, color = MetallicGray.copy(alpha = 0.3f))
         InfoItem(status.format ?: "—")
         InfoItem(if (status.bitDepth != null) "${status.bitDepth}-BIT" else "—")
         InfoItem(if (status.sampleRate != null) "${status.sampleRate / 1000f} kHz" else "—")
-        InfoItem(if (status.bitrate != null) "${status.bitrate / 1000} kbps" else "—")
+        InfoItem(if (state.output is com.lemonsquad.musichome.ui.models.OutputState.Bluetooth) "BT" else "DAC")
         HorizontalDivider(modifier = Modifier.width(24.dp), thickness = 1.dp, color = MetallicGray.copy(alpha = 0.3f))
     }
 }
@@ -428,31 +577,38 @@ fun InfoItem(label: String) {
 }
 
 @Composable
-fun QualityBadge(status: PlaybackStatus) {
-    val text = when {
-        status.isHighRes -> "HI-RES"
-        status.isLossless -> "LOSSLESS"
-        else -> "STANDARD"
+fun QualityBadge(verification: VerificationStatus, onClick: () -> Unit) {
+    val text = when (verification) {
+        VerificationStatus.VERIFIED -> "✓ VERIFIED"
+        VerificationStatus.ESTIMATED -> "◉ ESTIMATED"
+        VerificationStatus.UNKNOWN -> "? UNKNOWN"
     }
-    val color = when {
-        status.isHighRes -> Color(0xFFFFD700)
-        status.isLossless -> Color(0xFF00E5FF)
-        else -> MetallicGray
+    val color = when (verification) {
+        VerificationStatus.VERIFIED -> WalkmanOrange
+        VerificationStatus.ESTIMATED -> Color.White
+        VerificationStatus.UNKNOWN -> MetallicGray
     }
-    Box(modifier = Modifier.border(1.dp, color, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
-        Text(text, color = color, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+    Box(
+        modifier = Modifier
+            .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(text, color = color, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
     }
 }
 
 @Composable
 fun ArtworkFocusLayout(
-    currentSong: com.lemonsquad.musichome.core.domain.model.Song,
+    currentSong: Song,
     spectrum: FloatArray,
-    status: com.lemonsquad.musichome.ui.viewmodels.PlaybackStatus,
+    deviceState: DeviceState,
     viewModel: MusicViewModel,
     accentColor: Color,
     onExit: () -> Unit
 ) {
+    val status = deviceState.playback
+    val context = LocalContext.current
     Box(modifier = Modifier.fillMaxSize().background(PureBlack)) {
         AnimatedContent(
             targetState = currentSong.artwork,
@@ -471,11 +627,22 @@ fun ArtworkFocusLayout(
             Text(text = "${formatDuration(status.position)} / ${formatDuration(status.duration)}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(32.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.skipToPrevious() }) { Icon(MusicHomeIcons.SkipBack, null, Modifier.size(48.dp), Color.White) }
-                IconButton(onClick = { if (status.isPlaying) viewModel.pause() else viewModel.resume() }) {
+                IconButton(onClick = { 
+                    context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    viewModel.skipToPrevious() 
+                }) { Icon(MusicHomeIcons.SkipBack, null, Modifier.size(48.dp), Color.White) }
+                
+                IconButton(onClick = { 
+                    context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    if (status.isPlaying) viewModel.pause() else viewModel.resume() 
+                }) {
                     Icon(if (status.isPlaying) MusicHomeIcons.Pause else MusicHomeIcons.Play, null, Modifier.size(72.dp), WalkmanOrange)
                 }
-                IconButton(onClick = { viewModel.skipToNext() }) { Icon(MusicHomeIcons.SkipForward, null, Modifier.size(48.dp), Color.White) }
+                
+                IconButton(onClick = { 
+                    context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    viewModel.skipToNext() 
+                }) { Icon(MusicHomeIcons.SkipForward, null, Modifier.size(48.dp), Color.White) }
             }
         }
     }

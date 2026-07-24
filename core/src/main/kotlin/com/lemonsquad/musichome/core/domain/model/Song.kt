@@ -11,5 +11,9 @@ data class Song(
     val artwork: Uri?,
     val mediaUri: Uri,
     val path: String,
-    val trackNumber: Int = 0
+    val trackNumber: Int = 0,
+    val replayGain: Float? = null,
+    val albumGain: Float? = null,
+    val replayPeak: Float? = null,
+    val loudnessRange: Float? = null // DR Value
 )

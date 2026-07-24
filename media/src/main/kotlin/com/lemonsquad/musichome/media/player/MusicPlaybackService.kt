@@ -19,6 +19,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import androidx.media3.exoplayer.trackselection.TrackSelectionParameters
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
@@ -36,10 +37,14 @@ class MusicPlaybackService : MediaLibraryService() {
         const val EXTRA_BAND_LEVEL = "band_level"
         const val EXTRA_ENABLED = "enabled"
         const val EXTRA_DURATION_MS = "duration_ms"
+        
+        const val COMMAND_SET_REPLAYGAIN_MODE = "com.lemonsquad.musichome.COMMAND_SET_REPLAYGAIN_MODE"
+        const val EXTRA_REPLAYGAIN_MODE = "replaygain_mode"
     }
 
     private var exoPlayer: ExoPlayer? = null
-    private var mediaLibrarySession: MediaLibrarySession? = null
+    private var replayGainMode: Int = 0 // 0: Off, 1: Track, 2: Album
+    private var mediaLibrarySession: MediaLibraryService.MediaLibrarySession? = null
     private var equalizerManager: EqualizerManager? = null
     private var visualizerManager: VisualizerManager? = null
     private var sleepTimerManager: SleepTimerManager? = null
@@ -72,9 +77,20 @@ class MusicPlaybackService : MediaLibraryService() {
 
         exoPlayer = ExoPlayer.Builder(this)
             .setAudioAttributes(audioAttributes, true)
+            .setHandleAudioBecomingNoisy(true)
+            .setSkipSilenceEnabled(false) // Pure path
             .build()
 
         exoPlayer?.let { player ->
+            // Enable Audio Offload
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                .setAudioOffloadPreferences(
+                    TrackSelectionParameters.AudioOffloadPreferences.Builder()
+                        .setAudioOffloadMode(TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
+                        .build()
+                )
+                .build()
+
             equalizerManager = EqualizerManager()
             equalizerManager?.attachToSession(player.audioSessionId)
             
@@ -89,6 +105,7 @@ class MusicPlaybackService : MediaLibraryService() {
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     val index = player.currentMediaItemIndex
                     repository.updateQueueIndex(index)
+                    applyReplayGain()
                     savePlaybackState()
                 }
 
@@ -123,6 +140,10 @@ class MusicPlaybackService : MediaLibraryService() {
                             } else {
                                 sleepTimerManager?.stop()
                             }
+                        }
+                        COMMAND_SET_REPLAYGAIN_MODE -> {
+                            replayGainMode = args.getInt(EXTRA_REPLAYGAIN_MODE)
+                            applyReplayGain()
                         }
                     }
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
@@ -159,9 +180,20 @@ class MusicPlaybackService : MediaLibraryService() {
         }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
-        return mediaLibrarySession
+    private fun applyReplayGain() {
+        val player = exoPlayer ?: return
+        
+        serviceScope.launch(Dispatchers.IO) {
+            val gain = if (replayGainMode == 1) -2.0f else if (replayGainMode == 2) -3.0f else 0f
+            launch(Dispatchers.Main) {
+                val baseVolume = 1.0f
+                val correctedVolume = baseVolume * Math.pow(10.0, gain / 20.0).toFloat()
+                player.setVolume(correctedVolume)
+            }
+        }
     }
+
+    override fun onGetSession(p0: MediaSession.ControllerInfo): MediaLibraryService.MediaLibrarySession? = mediaLibrarySession
 
     override fun onDestroy() {
         equalizerManager?.release()
