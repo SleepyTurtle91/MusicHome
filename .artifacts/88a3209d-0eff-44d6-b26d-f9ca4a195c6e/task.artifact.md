@@ -19,3 +19,5 @@
     - `[x]` Gapless transition test
     - `[x]` ReplayGain mode validation
     - `[x]` USB DAC verified status test
+- `[x]` **Phase 7: Documentation**
+    - `[x]` Update README.md with DAP Platform identity

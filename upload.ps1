@@ -8,7 +8,7 @@ if (-not $token) {
 
 $repo = "SleepyTurtle91/MusicHome"
 $tag = "v2.0.0"
-$releaseNotes = Get-Content -Path "release_notes.md" -Raw
+$releaseNotes = [string](Get-Content -Path "release_notes.md" -Raw -Encoding UTF8)
 $apkPath = "app/build/outputs/apk/release/app-release.apk"
 
 $headers = @{
@@ -27,7 +27,7 @@ $body = @{
 
 $releaseUrl = "https://api.github.com/repos/$repo/releases"
 try {
-    $response = Invoke-RestMethod -Uri $releaseUrl -Method Post -Headers $headers -Body $body -ContentType "application/json"
+    $response = Invoke-RestMethod -Uri $releaseUrl -Method Post -Headers $headers -Body $body -ContentType "application/json; charset=utf-8"
     $uploadUrl = $response.upload_url -replace '\{.*\}', "?name=app-release.apk"
     
     Write-Output "Uploading APK asset..."

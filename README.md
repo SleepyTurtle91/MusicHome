@@ -1,147 +1,294 @@
-# Music Home 🎶🛡️
+# Music Home 🎧
 
-**Music Home transforms Android devices into dedicated music appliances / DAP-style platforms.** Rather than behaving like a traditional Android launcher, Music Home presents a dedicated, distraction-free music environment where playback is always the primary experience.
+## Software-Defined Digital Audio Player (DAP)
 
-It strips away the distractions of a standard phone interface and replaces it with a high-fidelity, music-centric environment inspired by classic high-end audio equipment like Sony Walkmans, vintage amplifiers, and modern high-end DAPs (Digital Audio Players).
+Music Home transforms Android devices into dedicated high-fidelity audio appliances.
 
----
+Inspired by premium hardware players such as Sony Walkman and Astell&Kern, Music Home combines a hardware-inspired interface, transparent audio telemetry, and a modular audio engine to create a focused listening experience.
 
-## 📸 Screenshots
-
-| Library | Player | Queue |
-| :---: | :---: | :---: |
-| ![Library](docs/screenshots/library.png) | ![Player](docs/screenshots/player.png) | ![Queue](docs/screenshots/queue.png) |
-
-| Apps | Library Tools | Sound (EQ) |
-| :---: | :---: | :---: |
-| ![Apps](docs/screenshots/apps.png) | ![Tools](docs/screenshots/tools.png) | ![Sound](docs/screenshots/sound.png) |
+> A music device, not just a music app.
 
 ---
 
-## 💡 Why Music Home?
+# Device First Philosophy
 
-Modern Android devices are designed around notifications, social media, and constant interaction. Music Home takes the opposite approach.
+Music Home follows a **Device First** design philosophy:
 
-It turns unused Android hardware into a single-purpose music machine:
-- **No distractions**: Just your music library.
-- **Offline-first playback**: No dependence on cloud services.
-- **Large album artwork**: Beautifully displayed metadata.
-- **Hardware-inspired controls**: Physical feel in a digital interface.
-- **Always ready**: Your device becomes a dedicated player, not a multitasker.
+### 🎛 Tactile
 
----
+The interface behaves like dedicated audio hardware.
 
-## 🏛️ Philosophy
+* Hardware-style navigation
+* Mechanical interaction feedback
+* Large physical-style controls
+* Purpose-driven screens
 
-Music Home is built on a simple idea: **Old Android devices deserve a second life.**
+### 🔍 Transparent
 
-Instead of becoming e-waste, they can become beautiful, dedicated music players that remain focused on one purpose—enjoying your music without distractions. Music Home aims to make Android disappear, leaving only the music.
+The device explains what is happening.
 
----
+Instead of hiding the audio path, Music Home exposes:
 
-## 🚧 Project Status (v1.3.0 "Library Tools")
-
-Music Home has evolved into a comprehensive **Open-Source DAP Platform** with built-in maintenance capabilities.
-
-**Current focus:**
-- [x] Home Launcher registration
-- [x] "Walkman Orange" Hardware UI Identity
-- [x] Real-time 16-band Spectrum Visualizer
-- [x] Advanced Multi-band Equalizer
-- [x] Intelligent Artwork Caching (Persistent 512px JPGs)
-- [x] **Direct Access**: Manual path selection & recursive folder browsing
-- [x] **Appliance Memory**: Persistent playback position & queue recovery
-- [x] **Hardware Integration**: Physical volume interception & custom HUDs
-- [x] **Library Tools**: Built-in maintenance workshop (Scanner, Duplicates, Health)
-
----
-
-## ⚡ Designed for Legacy Hardware
-
-Music Home is optimized for devices that are no longer useful as daily phones. The goal is smooth playback with minimal background activity.
-
-**Ideal targets:**
-- **Old Android Tablets**: Transform them into wall-mounted control panels or bedside hi-fi hubs.
-- **Spare Android Smartphones**: Create a permanent, distraction-free pocket player.
-- **Retired DAP Hardware**: Give old specialized hardware a fresh, modern OS experience.
-- **Android TV Boxes**: Turn them into dedicated media hub appliances.
-
----
-
-## 🎵 Supported Audio
-
-Currently supports standard Android Media3 codec formats:
-- **Lossless**: FLAC, WAV
-- **Lossy**: MP3, OGG, AAC
-- **Container**: M4A
-
----
-
-## ✨ Features
-
-- **🏠 Dedicated Appliance Mode**: Registers as the system home screen. The "Home" button is a "Return to Music" button.
-- **🎧 Hardware-Inspired UI**: A premium dark-themed interface with metallic accents, brushed textures, and vibrant "Walkman Orange" glows.
-- **📊 Real-time Visualization**: Integrated 16-band spectrum visualizer optimized for legacy hardware (30Hz refresh).
-- **🎚️ Pro Audio Controls**: High-fidelity vertical EQ sliders with system preset support (Rock, Pop, Bass Boost).
-- **📂 Flexible Library**: Mix system MediaStore results with **Manual Watched Folders** for total control over your collection.
-- **🕒 Hi-Fi Display**: Persistent clock, battery status, and bitrate information integrated like a high-end audio deck.
-- **🎵 Offline First**: Built around local music libraries. Your collection stays on your device and remains fully functional without an Internet connection.
-
----
-
-## 🏗️ Architecture
-
-The project follows a modularized **Clean Architecture** approach.
-
-```mermaid
-graph TD
-    subgraph "Music Home"
-        app[":app (Entry)"]
-        ui[":ui (Presentation)"]
-        media[":media (Engine)"]
-        core[":core (Domain & Data)"]
-
-        app --> ui
-        app --> media
-        app --> core
-        ui --> core
-        ui --> media
-        media --> core
-    end
+```
+Source → Engine → Output
 ```
 
-- **`:app`**: Entry point. Handles `MainActivity` (Launcher), hardware key interception, and manifest permissions.
-- **`:ui`**: The visual layer. Built with **Jetpack Compose** using custom hardware-inspired components.
-- **`:core`**: The heart of the app. Houses **Manual Scanning**, **Artwork Caching**, and **Room Persistence**.
-- **`:media`**: Audio engine using **AndroidX Media3**, **AudioFX (EQ)**, and **Visualizer API**.
+Users can understand:
+
+* What file is playing
+* How it is processed
+* Where the audio is being sent
+
+### 💾 Persistent
+
+A dedicated device remembers its user.
+
+Music Home preserves:
+
+* Last playback position
+* Active screen
+* Volume state
+* Listening session information
 
 ---
 
-## 🛠️ Tech Stack
+# High-Honesty Audio System
 
-- **Language**: Kotlin 2.x
-- **UI Framework**: Jetpack Compose (Material 3 Adaptive)
-- **Audio Processing**: Android AudioFX + Visualizer API
-- **Media Engine**: AndroidX Media3 / ExoPlayer
-- **Local Storage**: Room Persistence Library (Migration v3)
-- **Image Handling**: Coil + Palette API (Dynamic Backgrounds)
+Music Home avoids claiming capabilities without evidence.
+
+Every technical status is classified into three confidence levels:
+
+| Status      | Meaning                                                  |
+| ----------- | -------------------------------------------------------- |
+| ✓ VERIFIED  | Confirmed by hardware or system information              |
+| ◉ ESTIMATED | High-confidence information inferred from available data |
+| ? UNKNOWN   | Information unavailable or cannot be confirmed           |
+
+Example:
+
+```
+Source:
+FLAC 24-bit / 96kHz
+
+Engine:
+Media3
+
+Output:
+USB DAC
+
+Verification:
+✓ VERIFIED
+```
+
+For uncertain information:
+
+```
+Output:
+Bluetooth
+
+Codec:
+LDAC
+
+Verification:
+◉ ESTIMATED
+```
+
+Transparency is preferred over false precision.
 
 ---
 
-## 🗺️ Roadmap
+# Hardware UI Architecture
 
-- [x] Launcher replacement functionality
-- [x] Immersive Mode & Boot-start support
-- [x] Walkman UI Theme refinement
-- [x] **Real-time MediaStore synchronization** (Throttled Observer)
-- [x] **Full Local Library browsing** (Artists, Albums, Folders)
-- [x] **Hardware volume integration** & custom HUDs
-- [x] **Adaptive Appliance Layouts** (Phone/Tablet/Focus modes)
-- [x] **Album artwork fetching & caching**
-- [x] **Folder browsing & Equalizer**
-- [x] **Library Maintenance Suite** (Duplicate Finder, Tag Editor)
-- [ ] **USB DAC support** (Direct bit-perfect output)
-- [ ] **Internet Radio integration** (Shoutcast/TuneIn)
+Music Home uses a dedicated five-button hardware dock:
+
+```
+🎵 Library
+▶ Player
+🔍 Explore
+🎚 Sound
+⚙ Settings
+```
+
+Each destination has a specific purpose:
+
+| Section  | Purpose                             |
+| -------- | ----------------------------------- |
+| Library  | Manage and browse music collection  |
+| Player   | Immersive listening experience      |
+| Explore  | Device management and tools         |
+| Sound    | Audio tuning and signal information |
+| Settings | Device configuration                |
+
+---
+
+# Persistent Playback Strip
+
+The Playback Strip acts as the DAP front-panel display.
+
+Always visible:
+
+* Track title
+* Artist
+* Format
+* Sample rate
+* Bit depth
+* Playback progress
+
+Example:
+
+```
+Hotel California
+Eagles
+
+FLAC 24/96
+
+━━━━━━○━━━━ ▶
+```
+
+Users can access playback information without leaving their current workflow.
+
+---
+
+# High-Fidelity Sound System
+
+Music Home provides an audiophile-focused audio control environment.
+
+## Signal Chain Card
+
+The Trust Card visualizes the complete audio path:
+
+```
+SOURCE
+FLAC 24/96
+
+↓
+
+ENGINE
+Media3
+
+↓
+
+OUTPUT
+USB DAC
+✓ VERIFIED
+```
+
+---
+
+## Playback Processing
+
+Supported audio features:
+
+✅ Gapless Playback
+✅ ReplayGain Track Mode
+✅ ReplayGain Album Mode
+✅ Dynamic Range Metadata
+✅ Audio Offload Support
+
+Designed for:
+
+* Classical recordings
+* Live albums
+* High-resolution libraries
+* Long listening sessions
+
+---
+
+# OLED-Safe Desk Mode
+
+Music Home can transform into a dedicated desktop audio display.
+
+Designed for docked devices:
+
+Features:
+
+* OLED pure black background
+* Pixel-shifting protection
+* Automatic dimming
+* Landscape orientation
+* Battery monitoring
+* Network status
+* Sample rate display
+
+The phone becomes a small desktop music appliance.
+
+---
+
+# Technical Architecture
+
+Music Home uses a modular software-defined DAP architecture.
+
+## DeviceState
+
+A centralized source of truth:
+
+```text
+DeviceState
+
+├── Playback
+├── Audio Pipeline
+├── Output Device
+├── Verification Status
+├── Device Mode
+└── Hardware Capabilities
+```
+
+All major UI components consume the same hardware state.
+
+---
+
+## Audio Engine Abstraction
+
+The UI is separated from playback implementation.
+
+Architecture:
+
+```
+UI
+
+↓
+
+AudioController
+AudioTelemetry
+AudioVisualizer
+
+↓
+
+Media3 Audio Engine
+
+↓
+
+Android Audio System
+```
+
+Future audio engines can be integrated without rebuilding the application interface.
+
+---
+
+# Project Status
+
+## 🚀 DAP Appliance Foundation Complete
+
+Completed:
+
+✅ Hardware-inspired DAP interface
+✅ Five-tab Hardware Dock
+✅ Persistent Playback Strip
+✅ DeviceState architecture
+✅ High-Honesty telemetry
+✅ Hardware Dashboard
+✅ Desk Mode
+✅ Gapless playback
+✅ ReplayGain processing
+✅ Audio pipeline visualization
+
+Future milestones:
+
+* Advanced DSP engine
+* DSD workflow
+* Expanded DAC integrations
+* Intelligent library analysis
+* Advanced audiophile tools
 
 ---
 
