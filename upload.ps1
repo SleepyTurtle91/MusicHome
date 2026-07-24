@@ -1,32 +1,43 @@
 # GitHub Release Upload Script
-# Fill in your token and run to upload a release
-# $token = "YOUR_GITHUB_TOKEN"
+# Fill in your token or set GITHUB_TOKEN env variable
+$token = $env:GITHUB_TOKEN
+if (-not $token) {
+    Write-Output "Please configure GITHUB_TOKEN environment variable or set `$token in this script."
+    exit
+}
+
 $repo = "SleepyTurtle91/MusicHome"
-$tag = "v1.3.0"
-$releaseNotes = @"
-# Music Home v1.3.0
-
-### Added
-- **Library Tools**: A new maintenance workshop for managing your music collection.
-- **Library Health Score**: Visual indicator of library organization and metadata coverage.
-- **Deep Scanner**: New engine for scanning local media and extracting advanced metadata.
-- **Duplicate Finder**: Identify and manage duplicate music entries.
-- **Metadata Editor**: Built-in tag editor with Walkman-style interface, integrated into Library context menus.
-- **New Module**: `:organizer` library module for maintenance-related features.
-
-### Changed
-- Refactored `MusicHomeApp` navigation to include Library Tools.
-- Adopted `WalkmanTheme` across all new organizer screens.
-- Enhanced `LibraryScreen` with metadata editing capabilities.
-"@
-
+$tag = "v2.0.0"
+$releaseNotes = Get-Content -Path "release_notes.md" -Raw
 $apkPath = "app/build/outputs/apk/release/app-release.apk"
 
-# $headers = @{
-#     "Authorization" = "token $token"
-#     "Accept" = "application/vnd.github.v3+json"
-# }
+$headers = @{
+    "Authorization" = "token $token"
+    "Accept" = "application/vnd.github.v3+json"
+}
 
-# Check if release exists
-# ... rest of script removed for security or needs to be properly configured with env vars ...
-Write-Output "Please configure GITHUB_TOKEN environment variable to use this script."
+Write-Output "Creating release $tag for $repo..."
+$body = @{
+    tag_name = $tag
+    name = "Music Home $tag"
+    body = $releaseNotes
+    draft = $false
+    prerelease = $false
+} | ConvertTo-Json
+
+$releaseUrl = "https://api.github.com/repos/$repo/releases"
+try {
+    $response = Invoke-RestMethod -Uri $releaseUrl -Method Post -Headers $headers -Body $body -ContentType "application/json"
+    $uploadUrl = $response.upload_url -replace '\{.*\}', "?name=app-release.apk"
+    
+    Write-Output "Uploading APK asset..."
+    Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers @{
+        "Authorization" = "token $token"
+        "Accept" = "application/vnd.github.v3+json"
+        "Content-Type" = "application/vnd.android.package-archive"
+    } -InFile $apkPath
+
+    Write-Output "Upload completed successfully! Release URL: $($response.html_url)"
+} catch {
+    Write-Output "Failed to upload release: $_"
+}
