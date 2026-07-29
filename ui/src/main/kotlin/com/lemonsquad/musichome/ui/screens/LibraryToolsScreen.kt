@@ -1,5 +1,6 @@
 package com.lemonsquad.musichome.ui.screens
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lemonsquad.musichome.core.domain.model.ScanState
 import com.lemonsquad.musichome.organizer.ui.LibraryToolsViewModel
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.theme.DarkSurface
@@ -29,57 +31,119 @@ fun LibraryToolsScreen(
     onNavigateToScanner: () -> Unit
 ) {
     val stats by viewModel.healthStats.collectAsState()
+    val scanState by viewModel.repository.scanState.collectAsState(initial = ScanState.Idle)
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(vertical = 16.dp)
-    ) {
-        item {
-            HealthPanel(stats)
+    Column(modifier = Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = scanState !is ScanState.Idle && scanState !is ScanState.Finished,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            AnalyzingView(scanState)
         }
 
-        item {
-            Text(
-                "MAINTENANCE TOOLS",
-                style = MaterialTheme.typography.labelMedium,
-                color = WalkmanOrange,
-                letterSpacing = 2.sp,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            item {
+                HealthPanel(stats)
+            }
 
-        item {
-            ToolCard(
-                title = "MEDIA SCANNER",
-                description = "Deep scan local folders for new or updated files.",
-                icon = Icons.Default.Refresh,
-                onClick = onNavigateToScanner
-            )
-        }
+            item {
+                Text(
+                    "MAINTENANCE TOOLS",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = WalkmanOrange,
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
 
-        item {
-            ToolCard(
-                title = "DUPLICATE FINDER",
-                description = "Locate and manage identical song entries.",
-                icon = Icons.Default.FilterNone,
-                onClick = onNavigateToDuplicates
-            )
-        }
+            item {
+                ToolCard(
+                    title = "MEDIA SCANNER",
+                    description = "Deep scan local folders for new or updated files.",
+                    icon = Icons.Default.Refresh,
+                    onClick = onNavigateToScanner
+                )
+            }
 
-        item {
-            ToolCard(
-                title = "TAG EDITOR",
-                description = "Manual metadata correction for the library.",
-                icon = Icons.Default.Edit,
-                onClick = { /* Navigate to a list of songs or something */ }
-            )
+            item {
+                ToolCard(
+                    title = "DUPLICATE FINDER",
+                    description = "Locate and manage identical song entries.",
+                    icon = Icons.Default.FilterNone,
+                    onClick = onNavigateToDuplicates
+                )
+            }
+
+            item {
+                ToolCard(
+                    title = "TAG EDITOR",
+                    description = "Manual metadata correction for the library.",
+                    icon = Icons.Default.Edit,
+                    onClick = { /* Navigate to a list of songs or something */ }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun HealthPanel(stats: com.lemonsquad.musichome.organizer.health.LibraryHealthStats) {
+private fun AnalyzingView(state: ScanState) {
+    val (title, subtitle, progress) = when (state) {
+        is ScanState.Indexing -> Triple("DISCOVERING FILES", "Mapping storage locations...", state.progress)
+        is ScanState.Enriching -> Triple("EXTRACTING METADATA", "${state.current} / ${state.total}", null)
+        is ScanState.Analyzing -> Triple("ANALYZING LIBRARY", state.phase, null)
+        else -> Triple("PREPARING", "Initializing engine...", null)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(110.dp)
+            .background(Color(0xFF0A0A0A))
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (progress != null) {
+                CircularProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.size(24.dp),
+                    color = WalkmanOrange,
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = WalkmanOrange,
+                    strokeWidth = 2.dp
+                )
+            }
+            Spacer(modifier = Modifier.width(20.dp))
+            Column {
+                Text(
+                    title,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    subtitle,
+                    color = MetallicGray,
+                    fontSize = 10.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HealthPanel(stats: com.lemonsquad.musichome.core.domain.model.LibraryStats) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -99,9 +163,9 @@ fun HealthPanel(stats: com.lemonsquad.musichome.organizer.health.LibraryHealthSt
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "${stats.score}%",
+                "${stats.healthScore}%",
                 style = MaterialTheme.typography.headlineMedium,
-                color = if (stats.score > 80) Color.Green else if (stats.score > 50) WalkmanOrange else Color.Red,
+                color = if (stats.healthScore > 80) Color.Green else if (stats.healthScore > 50) WalkmanOrange else Color.Red,
                 fontWeight = FontWeight.ExtraBold
             )
         }
@@ -109,7 +173,7 @@ fun HealthPanel(stats: com.lemonsquad.musichome.organizer.health.LibraryHealthSt
         Spacer(modifier = Modifier.height(8.dp))
         
         LinearProgressIndicator(
-            progress = { stats.score / 100f },
+            progress = { stats.healthScore / 100f },
             modifier = Modifier.fillMaxWidth().height(8.dp),
             color = WalkmanOrange,
             trackColor = Color.DarkGray

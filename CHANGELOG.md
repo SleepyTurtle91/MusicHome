@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.0] - 2026-07-29
+
+### Added
+- **Durable Playback Sessions**: Full persistence of queue order, current index, and exact position (timestamp) through app restarts.
+- **Tactile Queue Mastery**: Professional-grade manual reordering (handles) and swipe-to-remove with Undo support.
+- **Unified Global Search**: Centralized search for Songs, Albums, and Artists with parallel execution and ranking.
+- **Intelligent Indexing Engine (v2)**: High-performance "Delta Scanning" using file timestamps and size to skip unchanged files.
+- **Phased Scanning**: New background pipeline (Index -> Enrich -> Intelligence) to keep UI responsive during large library updates.
+- **Library Configuration Hub**: Dedicated settings screen for managing music storage and viewing library statistics.
+- **Artwork Crossfade**: Premium 400ms visual transition for album art.
+- **"Up Next" Preview**: Vertical glanceable list of upcoming tracks in the Player.
+- **Sub-Screen Settings Architecture**: Scalable navigation-based settings (Appearance, Playback, Library, Updates).
+
+### Changed
+- **Data Unification**: Consolidated `:core` and `:organizer` databases into a single Global Media Index.
+- **Adaptive Transport Controls**: Dynamically resizing buttons (52dp-72dp) based on device screen width.
+- **Advanced Gestures**: Restricted swipes and double-taps to artwork area for more reliable playback control.
+- **Improved Information Architecture**: Moved music folder management from Library to Settings > Library.
+
+---
+
 ## [2.0.0] - 2026-07-24
 
 ### Added

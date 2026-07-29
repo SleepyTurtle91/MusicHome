@@ -1,5 +1,6 @@
 package com.lemonsquad.musichome.ui.models
 
+import com.lemonsquad.musichome.core.domain.model.PlaybackQueue
 import com.lemonsquad.musichome.ui.viewmodels.PlaybackStatus
 import com.lemonsquad.musichome.core.domain.model.ScanState
 import com.lemonsquad.musichome.ui.theme.AudioState
@@ -67,6 +68,7 @@ data class PowerState(
 
 data class DeviceState(
     val playback: PlaybackStatus = PlaybackStatus(),
+    val queue: PlaybackQueue? = null,
     val output: OutputState = OutputState.InternalDAC,
     val gain: GainStage = GainStage.MID,
     val mode: DeviceMode = DeviceMode.LISTENING,
@@ -83,7 +85,7 @@ data class DeviceState(
             output is OutputState.Bluetooth -> AudioState.BLUETOOTH
             playback.format == "DSD" -> AudioState.DSD_AUDIO
             playback.sampleRate != null && (playback.sampleRate > 48000) -> AudioState.HI_RES_AUDIO
-            scanState is ScanState.Scanning -> AudioState.SCANNING
+            scanState !is ScanState.Idle && scanState !is ScanState.Finished -> AudioState.SCANNING
             playback.isPlaying -> AudioState.STANDARD_AUDIO
             else -> AudioState.IDLE
         }

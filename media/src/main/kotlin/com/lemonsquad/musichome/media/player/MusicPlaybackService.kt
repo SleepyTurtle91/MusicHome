@@ -48,6 +48,7 @@ class MusicPlaybackService : MediaLibraryService() {
     private var equalizerManager: EqualizerManager? = null
     private var visualizerManager: VisualizerManager? = null
     private var sleepTimerManager: SleepTimerManager? = null
+    private var transitionStrategy: TransitionStrategy = InstantTransition()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     // Manual DI for now, matches MainActivity

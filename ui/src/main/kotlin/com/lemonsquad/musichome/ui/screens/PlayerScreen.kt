@@ -5,6 +5,7 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -44,6 +45,7 @@ import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 import com.lemonsquad.musichome.ui.utils.findActivity
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 enum class VisualizerMode {
     SPECTRUM, VU_METER, OFF
@@ -92,11 +94,6 @@ fun PlayerScreen(viewModel: MusicViewModel) {
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = { lastInteractionTime = System.currentTimeMillis() },
-                        onDoubleTap = {
-                            Log.d("PlayerScreen", "Gesture: Double Tap (Focus Mode)")
-                            isArtworkFocusMode = !isArtworkFocusMode
-                            context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                        },
                         onLongPress = {
                             Log.d("PlayerScreen", "Gesture: Long Press (Hardware Lock)")
                             viewModel.toggleDeviceMode(
@@ -145,8 +142,8 @@ fun PlayerScreen(viewModel: MusicViewModel) {
                                     deviceState, 
                                     viewModel, 
                                     darkVibrantAnimate, 
-                                    onFocusRequest = { isArtworkFocusMode = true },
                                     onShowSignalChain = { showSignalChain = true },
+                                    onArtworkFocusToggle = { isArtworkFocusMode = !isArtworkFocusMode },
                                     visualizerMode = visualizerMode,
                                     onToggleVisualizer = {
                                         visualizerMode = when(visualizerMode) {
@@ -164,6 +161,7 @@ fun PlayerScreen(viewModel: MusicViewModel) {
                                     viewModel, 
                                     darkVibrantAnimate,
                                     onShowSignalChain = { showSignalChain = true },
+                                    onArtworkFocusToggle = { isArtworkFocusMode = !isArtworkFocusMode },
                                     visualizerMode = visualizerMode,
                                     onToggleVisualizer = {
                                         visualizerMode = when(visualizerMode) {
@@ -213,27 +211,60 @@ fun TabletPlayerLayout(
     deviceState: DeviceState,
     viewModel: MusicViewModel,
     accentColor: Color,
-    onFocusRequest: () -> Unit,
     onShowSignalChain: () -> Unit,
+    onArtworkFocusToggle: () -> Unit,
     visualizerMode: VisualizerMode,
     onToggleVisualizer: () -> Unit
 ) {
     val status = deviceState.playback
+    val context = LocalContext.current
+    val artworkScale by animateFloatAsState(if (status.isPlaying) 1f else 0.98f, label = "ArtworkScale")
+    
     Row(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxHeight()
                 .weight(1.2f)
-                .clickable { onFocusRequest() },
+                .pointerInput(Unit) {
+                    var totalDrag = 0f
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (abs(totalDrag) > 100) {
+                                if (totalDrag > 0) {
+                                    viewModel.skipToPrevious()
+                                    context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                } else {
+                                    viewModel.skipToNext()
+                                    context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                }
+                            }
+                            totalDrag = 0f
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            totalDrag += dragAmount
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            if (status.isPlaying) viewModel.pause() else viewModel.resume()
+                            context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        },
+                        onLongPress = {
+                            onArtworkFocusToggle()
+                            context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        }
+                    )
+                },
             contentAlignment = Alignment.Center
         ) {
             AnimatedContent(
                 targetState = currentSong.artwork,
                 transitionSpec = {
-                    fadeIn(tween(600)) + scaleIn(initialScale = 0.95f) togetherWith
-                    fadeOut(tween(600))
+                    fadeIn(tween(400)) togetherWith fadeOut(tween(400))
                 },
-                label = "ArtworkTransition"
+                label = "ArtworkCrossfade"
             ) { targetArtwork ->
                 AsyncImage(
                     model = targetArtwork,
@@ -241,6 +272,7 @@ fun TabletPlayerLayout(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(24.dp)
+                        .graphicsLayer(scaleX = artworkScale, scaleY = artworkScale)
                         .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
@@ -331,9 +363,13 @@ fun TabletPlayerLayout(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { viewModel.skipToPrevious() }, modifier = Modifier.size(72.dp)) {
-                    Icon(MusicHomeIcons.SkipBack, null, Modifier.size(40.dp), Color.White)
-                }
+                HardwareButton(
+                    icon = MusicHomeIcons.SkipBack, 
+                    onClick = { viewModel.skipToPrevious() },
+                    onLongPress = {
+                        viewModel.seekTo((status.position - 5000).coerceAtLeast(0L))
+                    }
+                )
                 
                 HardwareButton(
                     icon = if (status.isPlaying) MusicHomeIcons.Pause else MusicHomeIcons.Play,
@@ -341,10 +377,17 @@ fun TabletPlayerLayout(
                     isPrimary = true
                 )
 
-                IconButton(onClick = { viewModel.skipToNext() }, modifier = Modifier.size(72.dp)) {
-                    Icon(MusicHomeIcons.SkipForward, null, Modifier.size(40.dp), Color.White)
-                }
+                HardwareButton(
+                    icon = MusicHomeIcons.SkipForward, 
+                    onClick = { viewModel.skipToNext() },
+                    onLongPress = {
+                        viewModel.seekTo((status.position + 5000).coerceAtMost(status.duration))
+                    }
+                )
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
+            UpNextPreview(deviceState)
         }
     }
 }
@@ -357,31 +400,67 @@ fun PhonePlayerLayout(
     viewModel: MusicViewModel,
     accentColor: Color,
     onShowSignalChain: () -> Unit,
+    onArtworkFocusToggle: () -> Unit,
     visualizerMode: VisualizerMode,
     onToggleVisualizer: () -> Unit
 ) {
     val status = deviceState.playback
+    val context = LocalContext.current
+    val artworkScale by animateFloatAsState(if (status.isPlaying) 1f else 0.98f, label = "ArtworkScale")
+    
     Column(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(0.4f)
-                .padding(24.dp),
+                .padding(24.dp)
+                .pointerInput(Unit) {
+                    var totalDrag = 0f
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (abs(totalDrag) > 100) {
+                                if (totalDrag > 0) {
+                                    viewModel.skipToPrevious()
+                                    context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                } else {
+                                    viewModel.skipToNext()
+                                    context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                }
+                            }
+                            totalDrag = 0f
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            totalDrag += dragAmount
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            if (status.isPlaying) viewModel.pause() else viewModel.resume()
+                            context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        },
+                        onLongPress = {
+                            onArtworkFocusToggle()
+                            context.findActivity()?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        }
+                    )
+                },
             contentAlignment = Alignment.Center
         ) {
             AnimatedContent(
                 targetState = currentSong.artwork,
                 transitionSpec = {
-                    fadeIn(tween(600)) + scaleIn(initialScale = 0.95f) togetherWith
-                    fadeOut(tween(600))
+                    fadeIn(tween(400)) togetherWith fadeOut(tween(400))
                 },
-                label = "ArtworkTransition"
+                label = "ArtworkCrossfade"
             ) { targetArtwork ->
                 AsyncImage(
                     model = targetArtwork,
                     contentDescription = null,
                     modifier = Modifier
                         .aspectRatio(1f)
+                        .graphicsLayer(scaleX = artworkScale, scaleY = artworkScale)
                         .clip(RoundedCornerShape(16.dp))
                         .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
                     contentScale = ContentScale.Crop
@@ -492,8 +571,9 @@ fun PhonePlayerLayout(
                 HardwareButton(
                     icon = MusicHomeIcons.SkipBack, 
                     onClick = { viewModel.skipToPrevious() },
-                    onLongPress = { isForward ->
-                        // Simplified seek loop in UI for Phase 2.75
+                    onLongPress = { 
+                        // Seek backward logic
+                        viewModel.seekTo((status.position - 5000).coerceAtLeast(0L))
                     }
                 )
                 HardwareButton(
@@ -503,10 +583,51 @@ fun PhonePlayerLayout(
                 )
                 HardwareButton(
                     icon = MusicHomeIcons.SkipForward, 
-                    onClick = { viewModel.skipToNext() }
+                    onClick = { viewModel.skipToNext() },
+                    onLongPress = {
+                        // Seek forward logic
+                        viewModel.seekTo((status.position + 5000).coerceAtMost(status.duration))
+                    }
                 )
             }
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+fun UpNextPreview(state: DeviceState) {
+    val currentQueue = state.queue ?: return
+    val currentIndex = currentQueue.currentIndex
+    val nextSongs = currentQueue.songs.drop(currentIndex + 1).take(3)
+    
+    if (nextSongs.isEmpty()) return
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "UP NEXT",
+            color = MetallicGray,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        nextSongs.forEach { song ->
+            Text(
+                text = song.title,
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 48.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
@@ -516,10 +637,20 @@ fun HardwareButton(
     icon: ImageVector, 
     onClick: () -> Unit, 
     isPrimary: Boolean = false,
-    onLongPress: ((Boolean) -> Unit)? = null
+    onLongPress: (() -> Unit)? = null
 ) {
-    val size = if (isPrimary) 84.dp else 68.dp
-    val iconSize = if (isPrimary) 48.dp else 32.dp
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    
+    val baseSize = when {
+        screenWidth < 360 -> 52.dp
+        screenWidth < 480 -> 60.dp
+        screenWidth < 600 -> 68.dp
+        else -> 72.dp
+    }
+    
+    val size = if (isPrimary) baseSize * 1.25f else baseSize
+    val iconSize = if (isPrimary) 40.dp else 28.dp
     val context = LocalContext.current
     
     val interactionSource = remember { MutableInteractionSource() }
@@ -533,12 +664,12 @@ fun HardwareButton(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
-                        val pressHaptic = if (isPrimary) HapticFeedbackConstants.CLOCK_TICK else HapticFeedbackConstants.VIRTUAL_KEY
+                        val pressHaptic = if (isPrimary) HapticFeedbackConstants.KEYBOARD_TAP else HapticFeedbackConstants.VIRTUAL_KEY
                         context.findActivity()?.window?.decorView?.performHapticFeedback(pressHaptic)
                     },
                     onTap = { onClick() },
                     onLongPress = {
-                        onLongPress?.invoke(true) // Just a trigger for now
+                        onLongPress?.invoke()
                     }
                 )
             },
@@ -548,12 +679,20 @@ fun HardwareButton(
         border = BorderStroke(1.dp, Color.White.copy(alpha = if (isPressed) 0.2f else 0.1f))
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon, 
-                contentDescription = null, 
-                modifier = Modifier.size(iconSize), 
-                tint = if (isPressed) Color.White else Color.White.copy(alpha = 0.9f)
-            )
+            AnimatedContent(
+                targetState = icon,
+                transitionSpec = {
+                    fadeIn(tween(200)) togetherWith fadeOut(tween(200))
+                },
+                label = "IconTransition"
+            ) { targetIcon ->
+                Icon(
+                    imageVector = targetIcon, 
+                    contentDescription = null, 
+                    modifier = Modifier.size(iconSize), 
+                    tint = if (isPressed) Color.White else Color.White.copy(alpha = 0.9f)
+                )
+            }
         }
     }
 }

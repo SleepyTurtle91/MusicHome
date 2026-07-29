@@ -12,6 +12,10 @@ data class PlaybackStateEntity(
     val queueIndex: Int,
     val source: String?,
     val sourceName: String?,
+    val repeatMode: Int = 0, // 0: None, 1: One, 2: All
+    val shuffleEnabled: Boolean = false,
+    val sessionVersion: Int = 1,
+    val queueRevision: Int = 0,
     val lastDestination: String?,
     val lastDestinationId: String?,
     val updatedAt: Long

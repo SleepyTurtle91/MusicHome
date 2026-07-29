@@ -30,7 +30,10 @@ class MediaStoreScanner(private val context: Context) {
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.MIME_TYPE,
             MediaStore.Audio.Media.DATE_ADDED,
-            MediaStore.Audio.Media.TRACK
+            MediaStore.Audio.Media.DATE_MODIFIED,
+            MediaStore.Audio.Media.SIZE,
+            MediaStore.Audio.Media.TRACK,
+            MediaStore.Audio.Media.YEAR
         )
 
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= ?"
@@ -53,7 +56,10 @@ class MediaStoreScanner(private val context: Context) {
             val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
             val mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
             val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
+            val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
             val trackColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
+            val yearColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -76,7 +82,10 @@ class MediaStoreScanner(private val context: Context) {
                         path = cursor.getString(dataColumn) ?: "",
                         mimeType = cursor.getString(mimeTypeColumn) ?: "audio/*",
                         dateAdded = cursor.getLong(dateAddedColumn),
-                        trackNumber = cursor.getInt(trackColumn)
+                        dateModified = cursor.getLong(dateModifiedColumn),
+                        size = cursor.getLong(sizeColumn),
+                        trackNumber = cursor.getInt(trackColumn),
+                        year = if (cursor.getInt(yearColumn) > 0) cursor.getInt(yearColumn) else null
                     )
                 )
             }

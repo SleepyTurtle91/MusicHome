@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lemonsquad.musichome.organizer.ui.LibraryToolsViewModel
-import com.lemonsquad.musichome.organizer.duplicates.DuplicateGroup
+import com.lemonsquad.musichome.core.domain.analysis.DuplicateGroup
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.theme.NearBlack
 import com.lemonsquad.musichome.ui.theme.DarkSurface
@@ -88,7 +88,7 @@ fun DuplicateGroupCard(group: DuplicateGroup) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(song.path, color = Color.White, fontSize = 11.sp, maxLines = 1)
-                    Text("${song.format} • ${song.size / 1024} KB", color = MetallicGray, fontSize = 10.sp)
+                    Text("${song.mimeType} • ${song.size / 1024} KB", color = MetallicGray, fontSize = 10.sp)
                 }
                 IconButton(onClick = { /* Delete action */ }) {
                     Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray, modifier = Modifier.size(20.dp))

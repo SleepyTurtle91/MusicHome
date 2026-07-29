@@ -26,17 +26,21 @@ import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 fun SettingsScreen(
     viewModel: MusicViewModel,
     onNavigateToAbout: () -> Unit,
-    onNavigateToDashboard: () -> Unit
+    onNavigateToDashboard: () -> Unit,
+    onNavigateToAppearance: () -> Unit,
+    onNavigateToPlayback: () -> Unit,
+    onNavigateToUpdates: () -> Unit,
+    onNavigateToLibrary: () -> Unit
 ) {
     var developerTaps by remember { mutableIntStateOf(0) }
     var showDiagnostics by remember { mutableStateOf(false) }
 
     val settingsItems = mutableListOf(
-        SettingsItem("Appearance", MusicHomeIcons.Appearance),
+        SettingsItem("Appearance", MusicHomeIcons.Appearance, onClick = onNavigateToAppearance),
         SettingsItem("Hardware Cockpit", MusicHomeIcons.Tools, onClick = onNavigateToDashboard),
-        SettingsItem("Playback", MusicHomeIcons.Playback),
-        SettingsItem("Library", MusicHomeIcons.Library),
-        SettingsItem("Updates", MusicHomeIcons.Update),
+        SettingsItem("Playback", MusicHomeIcons.Playback, onClick = onNavigateToPlayback),
+        SettingsItem("Library", MusicHomeIcons.Library, onClick = onNavigateToLibrary),
+        SettingsItem("Updates", MusicHomeIcons.Update, onClick = onNavigateToUpdates),
         SettingsItem("About Music Home", MusicHomeIcons.Info, onClick = onNavigateToAbout)
     )
 

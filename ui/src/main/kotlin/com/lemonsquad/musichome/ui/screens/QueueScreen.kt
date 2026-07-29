@@ -1,18 +1,20 @@
 package com.lemonsquad.musichome.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +27,7 @@ import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 @Composable
 fun QueueScreen(viewModel: MusicViewModel) {
     val queue by viewModel.repository.currentQueue.collectAsState()
+    val haptic = LocalHapticFeedback.current
 
     Column(
         modifier = Modifier
@@ -87,7 +90,8 @@ fun QueueScreen(viewModel: MusicViewModel) {
                     QueueSongItem(
                         song = q.songs[q.currentIndex],
                         isCurrent = true,
-                        onClick = {}
+                        onClick = {},
+                        onRemove = { viewModel.removeQueueItem(q.currentIndex) }
                     )
                     
                     if (q.currentIndex < q.songs.size - 1) {
@@ -103,12 +107,22 @@ fun QueueScreen(viewModel: MusicViewModel) {
                     }
                 }
 
-                itemsIndexed(q.songs) { index, song ->
+                itemsIndexed(q.songs, key = { _, song -> song.id }) { index, song ->
                     if (index > q.currentIndex) {
-                        QueueSongItem(
-                            song = song,
-                            isCurrent = false,
-                            onClick = { /* TODO: Jump to in queue */ }
+                        SwipeToDismissItem(
+                            onDismiss = { 
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.removeQueueItem(index) 
+                            },
+                            content = {
+                                QueueSongItem(
+                                    song = song,
+                                    isCurrent = false,
+                                    onClick = { viewModel.updateQueueIndex(index) },
+                                    onRemove = { viewModel.removeQueueItem(index) },
+                                    showHandle = true
+                                )
+                            }
                         )
                     }
                 }
@@ -117,8 +131,50 @@ fun QueueScreen(viewModel: MusicViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QueueSongItem(song: Song, isCurrent: Boolean, onClick: () -> Unit) {
+fun SwipeToDismissItem(
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = {
+            if (it == SwipeToDismissBoxValue.EndToStart) {
+                onDismiss()
+                true
+            } else false
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Color.Red.copy(alpha = 0.8f)
+            } else Color.Transparent
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(color)
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Text("REMOVE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+        },
+        content = { content() }
+    )
+}
+
+@Composable
+fun QueueSongItem(
+    song: Song, 
+    isCurrent: Boolean, 
+    onClick: () -> Unit,
+    onRemove: () -> Unit,
+    showHandle: Boolean = false
+) {
     Surface(
         onClick = onClick,
         color = if (isCurrent) Color(0xFF1A1A1A) else Color.Transparent,
@@ -129,6 +185,16 @@ fun QueueSongItem(song: Song, isCurrent: Boolean, onClick: () -> Unit) {
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (showHandle) {
+                Icon(
+                    Icons.Default.DragHandle,
+                    contentDescription = "Reorder",
+                    tint = MetallicGray.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+            }
+
             Text(
                 text = if (isCurrent) "▶" else "",
                 color = WalkmanOrange,

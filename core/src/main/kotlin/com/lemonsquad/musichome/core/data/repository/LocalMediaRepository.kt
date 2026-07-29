@@ -4,6 +4,9 @@ import android.net.Uri
 import com.lemonsquad.musichome.core.data.database.AlbumDto
 import com.lemonsquad.musichome.core.data.database.AppSettingsEntity
 import com.lemonsquad.musichome.core.data.database.ArtistDto
+import com.lemonsquad.musichome.core.domain.analysis.DuplicateFinder
+import com.lemonsquad.musichome.core.domain.analysis.LibraryHealthAnalyzer
+import com.lemonsquad.musichome.core.data.database.LibraryStatsEntity
 import com.lemonsquad.musichome.core.data.database.LocalSongEntity
 import com.lemonsquad.musichome.core.data.database.PlaybackStateEntity
 import com.lemonsquad.musichome.core.data.database.SongDao
@@ -39,6 +42,12 @@ class LocalMediaRepository(
     private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
     override val scanState: StateFlow<ScanState> = _scanState.asStateFlow()
 
+    private val duplicateFinder = DuplicateFinder()
+    private val healthAnalyzer = LibraryHealthAnalyzer()
+
+    private val _libraryStats = MutableStateFlow(LibraryStats())
+    override val libraryStats: StateFlow<LibraryStats> = _libraryStats.asStateFlow()
+
     private val _currentQueue = MutableStateFlow<PlaybackQueue?>(null)
     override val currentQueue: StateFlow<PlaybackQueue?> = _currentQueue.asStateFlow()
 
@@ -64,20 +73,62 @@ class LocalMediaRepository(
 
     override suspend fun syncLibrary() {
         try {
-            _scanState.value = ScanState.Scanning
+            _scanState.value = ScanState.Indexing(0f)
+            
+            // Phase 1: Fast Discovery (MediaStore)
             val mediaStoreSongs = scanner.scan()
             
-            val manualSongs = mutableListOf<LocalSongEntity>()
-            val folders = dao.getAllWatchedFolders().first()
-            for (folder in folders) {
-                manualSongs.addAll(manualScanner.scanFolder(folder.path))
+            // Phase 2: Delta Comparison
+            val currentSongs = dao.getAllSongsSortedByTitle().first().associateBy { it.id }
+            val songsToInsert = mutableListOf<LocalSongEntity>()
+            
+            mediaStoreSongs.forEachIndexed { index, newSong ->
+                val existing = currentSongs[newSong.id]
+                if (existing == null || existing.dateModified != newSong.dateModified || existing.size != newSong.size) {
+                    songsToInsert.add(newSong)
+                }
+                
+                if (index % 100 == 0) {
+                    _scanState.value = ScanState.Indexing(index.toFloat() / mediaStoreSongs.size)
+                }
             }
 
-            dao.insertAll(mediaStoreSongs + manualSongs)
-            _scanState.value = ScanState.Finished(mediaStoreSongs.size + manualSongs.size)
+            if (songsToInsert.isNotEmpty()) {
+                _scanState.value = ScanState.Enriching(0, songsToInsert.size)
+                // Batch insert
+                dao.insertAll(songsToInsert)
+            }
+
+            // Phase 3: Analytics (Async)
+            repositoryScope.launch(Dispatchers.Default) {
+                updateLibraryStats()
+            }
+
+            _scanState.value = ScanState.Finished(mediaStoreSongs.size)
         } catch (e: Exception) {
             _scanState.value = ScanState.Error(e.message ?: "Unknown error during scan")
         }
+    }
+
+    private suspend fun updateLibraryStats() {
+        val songs = allSongs.first()
+        if (songs.isEmpty()) return
+        
+        val duplicates = duplicateFinder.findDuplicates(songs).sumOf { it.songs.size - 1 }
+        val stats = healthAnalyzer.analyze(songs, duplicates)
+        
+        _libraryStats.value = stats
+        
+        val entity = LibraryStatsEntity(
+            totalSongs = stats.totalSongs,
+            totalAlbums = stats.totalAlbums,
+            totalArtists = stats.totalArtists,
+            missingArtworkCount = stats.missingArtworkCount,
+            duplicateCount = stats.duplicateCount,
+            healthScore = stats.healthScore,
+            lastScanTimestamp = stats.lastScanTimestamp
+        )
+        dao.saveLibraryStats(entity)
     }
 
     override suspend fun refreshLibrary() {
@@ -102,6 +153,20 @@ class LocalMediaRepository(
 
     override fun updateQueueIndex(index: Int) {
         _currentQueue.value = _currentQueue.value?.copy(currentIndex = index)
+    }
+
+    override fun updateQueueOrder(songs: List<Song>) {
+        _currentQueue.value = _currentQueue.value?.let { 
+            it.copy(songs = songs, revision = it.revision + 1)
+        }
+    }
+
+    override fun setShuffleEnabled(enabled: Boolean) {
+        _currentQueue.value = _currentQueue.value?.copy(shuffleEnabled = enabled)
+    }
+
+    override fun setRepeatMode(mode: RepeatMode) {
+        _currentQueue.value = _currentQueue.value?.copy(repeatMode = mode)
     }
 
     override fun setNavigationMode(mode: NavigationMode) {
@@ -135,6 +200,9 @@ class LocalMediaRepository(
             queueIndex = queue.currentIndex,
             source = queue.source.name,
             sourceName = queue.sourceName,
+            repeatMode = queue.repeatMode.ordinal,
+            shuffleEnabled = queue.shuffleEnabled,
+            queueRevision = queue.revision,
             lastDestination = existing?.lastDestination,
             lastDestinationId = existing?.lastDestinationId,
             updatedAt = System.currentTimeMillis()
@@ -177,7 +245,10 @@ class LocalMediaRepository(
             songs = songs,
             currentIndex = state.queueIndex,
             source = state.source?.let { QueueSource.valueOf(it) } ?: QueueSource.ALL_SONGS,
-            sourceName = state.sourceName
+            sourceName = state.sourceName,
+            repeatMode = RepeatMode.values().getOrElse(state.repeatMode) { RepeatMode.NONE },
+            shuffleEnabled = state.shuffleEnabled,
+            revision = state.queueRevision
         )
     }
 
@@ -200,7 +271,14 @@ private fun LocalSongEntity.toDomain(): Song = Song(
     artwork = albumArtUri?.let { Uri.parse(it) },
     mediaUri = Uri.parse(path), // Simplified for local path
     path = path,
-    trackNumber = trackNumber
+    mimeType = mimeType,
+    trackNumber = trackNumber,
+    size = size,
+    dateModified = dateModified,
+    replayGain = replayGain,
+    albumGain = albumGain,
+    replayPeak = replayPeak,
+    loudnessRange = loudnessRange
 )
 
 private fun AlbumDto.toDomain(): Album = Album(

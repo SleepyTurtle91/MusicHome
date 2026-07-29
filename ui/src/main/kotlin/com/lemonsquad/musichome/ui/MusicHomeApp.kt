@@ -34,9 +34,14 @@ import com.lemonsquad.musichome.ui.utils.findActivity
 import android.view.HapticFeedbackConstants
 import com.lemonsquad.musichome.ui.models.*
 import com.lemonsquad.musichome.ui.screens.*
+import com.lemonsquad.musichome.ui.screens.settings.*
 import com.lemonsquad.musichome.ui.components.*
 import com.lemonsquad.musichome.ui.theme.MusicDestination
 import com.lemonsquad.musichome.ui.viewmodels.MusicUiState
+import com.lemonsquad.musichome.ui.screens.settings.AppearanceSettingsScreen
+import com.lemonsquad.musichome.ui.screens.settings.PlaybackSettingsScreen
+import com.lemonsquad.musichome.ui.screens.settings.UpdatesSettingsScreen
+import com.lemonsquad.musichome.ui.screens.settings.LibrarySettingsScreen
 import com.lemonsquad.musichome.core.domain.model.NavigationMode
 import com.lemonsquad.musichome.core.domain.model.ScanState
 import com.lemonsquad.musichome.organizer.ui.LibraryToolsViewModel
@@ -182,6 +187,9 @@ fun MusicHomeApp(
                                         containerColor = Color.Black
                                     ),
                                     actions = {
+                                        IconButton(onClick = { navController.navigate("search") }) {
+                                            Icon(MusicHomeIcons.Search, contentDescription = "Search", tint = Color.White)
+                                        }
                                         Text(
                                             "$currentTime | $batteryLevel%",
                                             modifier = Modifier.padding(end = 16.dp),
@@ -230,7 +238,8 @@ fun MusicHomeApp(
                                     },
                                     onEditMetadata = { song ->
                                         navController.navigate("metadata?path=${Uri.encode(song.path)}")
-                                    }
+                                    },
+                                    onNavigateToSettings = { navController.navigate("settings/library") }
                                 ) 
                             }
                             composable("album-detail") {
@@ -266,17 +275,17 @@ fun MusicHomeApp(
                                 )
                             ) { backStackEntry ->
                                 val path = backStackEntry.arguments?.getString("path")
-                                var songEntity by remember { mutableStateOf<com.lemonsquad.musichome.organizer.data.SongEntity?>(null) }
+                                var song by remember { mutableStateOf<com.lemonsquad.musichome.core.domain.model.Song?>(null) }
                                 
                                 LaunchedEffect(path) {
                                     if (path != null) {
-                                        songEntity = libraryToolsViewModel.getSongByPath(path)
+                                        song = libraryToolsViewModel.getSongByPath(path)
                                     }
                                 }
 
-                                if (songEntity != null) {
+                                if (song != null) {
                                     MetadataEditorScreen(
-                                        song = songEntity!!,
+                                        song = song!!,
                                         viewModel = libraryToolsViewModel,
                                         onSaved = { navController.popBackStack() }
                                     )
@@ -287,6 +296,12 @@ fun MusicHomeApp(
                                 }
                             }
                             composable("sound") { SoundScreen(musicViewModel) }
+                            composable("search") {
+                                GlobalSearchScreen(
+                                    viewModel = musicViewModel,
+                                    onBack = { navController.popBackStack() }
+                                )
+                            }
                             composable("dashboard") {
                                 DeviceDashboardScreen(
                                     viewModel = musicViewModel,
@@ -297,7 +312,20 @@ fun MusicHomeApp(
                                 SettingsScreen(
                                     viewModel = musicViewModel,
                                     onNavigateToAbout = { navController.navigate("about") },
-                                    onNavigateToDashboard = { navController.navigate("dashboard") }
+                                    onNavigateToDashboard = { navController.navigate("dashboard") },
+                                    onNavigateToAppearance = { navController.navigate("settings/appearance") },
+                                    onNavigateToPlayback = { navController.navigate("settings/playback") },
+                                    onNavigateToUpdates = { navController.navigate("settings/updates") },
+                                    onNavigateToLibrary = { navController.navigate("settings/library") }
+                                ) 
+                            }
+                            composable("settings/appearance") { AppearanceSettingsScreen(onBack = { navController.popBackStack() }) }
+                            composable("settings/playback") { PlaybackSettingsScreen(viewModel = musicViewModel, onBack = { navController.popBackStack() }) }
+                            composable("settings/updates") { UpdatesSettingsScreen(appVersion = appVersion, onBack = { navController.popBackStack() }) }
+                            composable("settings/library") { 
+                                LibrarySettingsScreen(
+                                    viewModel = musicViewModel,
+                                    onBack = { navController.popBackStack() }
                                 ) 
                             }
                             composable("about") { AboutScreen(musicViewModel, appVersion) }

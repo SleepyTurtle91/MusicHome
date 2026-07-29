@@ -70,6 +70,13 @@ interface SongDao {
 
     @Query("DELETE FROM watched_folders WHERE path = :path")
     suspend fun deleteWatchedFolder(path: String)
+
+    // Library Stats
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveLibraryStats(stats: LibraryStatsEntity)
+
+    @Query("SELECT * FROM library_stats WHERE id = 0")
+    fun getLibraryStats(): Flow<LibraryStatsEntity?>
 }
 
 data class AlbumDto(

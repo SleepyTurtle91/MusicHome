@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lemonsquad.musichome.organizer.data.SongEntity
+import com.lemonsquad.musichome.core.domain.model.Song
 import com.lemonsquad.musichome.organizer.ui.LibraryToolsViewModel
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 import com.lemonsquad.musichome.ui.theme.NearBlack
@@ -21,15 +21,15 @@ import com.lemonsquad.musichome.ui.theme.MetallicGray
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MetadataEditorScreen(
-    song: SongEntity,
+    song: Song,
     viewModel: LibraryToolsViewModel,
     onSaved: () -> Unit
 ) {
     var title by remember { mutableStateOf(song.title) }
     var artist by remember { mutableStateOf(song.artist) }
-    var album by remember { mutableStateOf(song.album) }
-    var genre by remember { mutableStateOf(song.genre ?: "") }
-    var year by remember { mutableStateOf(song.year?.toString() ?: "") }
+    var album by remember { mutableStateOf(song.album ?: "") }
+    var genre by remember { mutableStateOf("") } // genre not in domain song yet or hidden
+    var year by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -41,9 +41,7 @@ fun MetadataEditorScreen(
                         viewModel.updateSong(song.copy(
                             title = title,
                             artist = artist,
-                            album = album,
-                            genre = genre.ifBlank { null },
-                            year = year.toIntOrNull()
+                            album = album.ifBlank { null }
                         ))
                         onSaved()
                     }) {
@@ -73,7 +71,7 @@ fun MetadataEditorScreen(
             
             Text("FILE INFORMATION", style = MaterialTheme.typography.labelSmall, color = WalkmanOrange, letterSpacing = 1.sp)
             Text("PATH: ${song.path}", style = MaterialTheme.typography.bodySmall, color = MetallicGray)
-            Text("FORMAT: ${song.format} • SIZE: ${song.size / 1024} KB", style = MaterialTheme.typography.bodySmall, color = MetallicGray)
+            Text("FORMAT: ${song.mimeType} • SIZE: ${song.size / 1024} KB", style = MaterialTheme.typography.bodySmall, color = MetallicGray)
         }
     }
 }

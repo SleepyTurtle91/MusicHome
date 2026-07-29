@@ -1,23 +1,17 @@
-# Tasks - Phase 3: High-Fidelity Signal Path
+# Tasks - Phase 5: Intelligent Indexing Engine v2
 
-- `[x]` **Phase 1: Data Model & Architecture**
-    - `[x]` Update `Song.kt` with audiophile metadata fields
-    - `[x]` Create `AudioMetadata.kt` and `AudioPipelineState.kt` models
-    - `[x]` Define `AudioMetadataReader.kt` interface
-- `[x]` **Phase 2: Technical Metadata Parsing**
-    - `[x]` Implement `BasicAudioMetadataReader` using Media3 metadata
-- `[x]` **Phase 3: Audio Engine Enhancements**
-    - `[x]` Implement ReplayGain logic in `MusicPlaybackService.kt`
-    - `[x]` Enable Audio Offload and Gapless configuration in `ExoPlayer`
-- `[x]` **Phase 4: Telemetry & Hardware Verification**
-    - `[x]` Implement USB DAC detection via `UsbManager`
-    - `[x]` Refine Bluetooth Codec heuristics in `Media3AudioEngine.kt`
-- `[x]` **Phase 5: UI & Session Analytics**
-    - `[x]` Update `SoundScreen.kt` with Playback Processing controls
-    - `[x]` Implement "Last Listening Session" analytics card in `DeviceDashboardScreen.kt`
-- `[x]` **Phase 6: Verification**
-    - `[x]` Gapless transition test
-    - `[x]` ReplayGain mode validation
-    - `[x]` USB DAC verified status test
-- `[x]` **Phase 7: Documentation**
-    - `[x]` Update README.md with DAP Platform identity
+- `[x]` **Phase 1: Global Media Index Unification**
+    - `[x]` Consolidate `:core` and `:organizer` databases
+    - `[x]` Remove redundant `OrganizerRepository` and `MusicDao`
+    - `[x]` Update `LocalSongEntity` with metadata and analysis fields
+- `[x]` **Phase 2: Intelligent Indexing Engine v2**
+    - `[x]` Implement "Delta Scan" (Size/DateModified) in `MediaStoreScanner`
+    - `[x]` Implement Phased Scanning: Index -> Enrich -> Intelligence
+    - `[x]` Add `LibraryStatsEntity` and persistent caching
+- `[x]` **Phase 3: UI Feedback & Responsiveness**
+    - `[x]` Update `LibraryToolsScreen` with granular progress reporting
+    - `[x]` Refactor `DuplicateFinderScreen` to use unified media model
+    - `[x]` Fix search indexing to support partial discovery state
+- `[x]` **Phase 4: Verification & Testing**
+    - `[x]` Verify delta scan speed with 1000+ song library
+    - `[x]` Confirm UI responsiveness during deep background analysis

@@ -142,52 +142,6 @@ fun SoundScreen(viewModel: MusicViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Playback Processing
-        Text(
-            text = "PLAYBACK PROCESSING",
-            color = MetallicGray,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        CockpitSettingRow("Gapless Playback", true) { /* TODO */ }
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Text(
-            text = "REPLAYGAIN MODE",
-            color = MetallicGray,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        val gainModes = listOf("OFF", "TRACK", "ALBUM")
-        var selectedGainMode by remember { mutableStateOf("ALBUM") }
-        
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            gainModes.forEach { mode ->
-                val isSelected = selectedGainMode == mode
-                AssistChip(
-                    onClick = { selectedGainMode = mode },
-                    label = { Text(mode, fontSize = 9.sp) },
-                    colors = AssistChipDefaults.assistChipColors(
-                        labelColor = if (isSelected) WalkmanOrange else Color.White,
-                        containerColor = if (isSelected) WalkmanOrange.copy(alpha = 0.1f) else Color.Transparent
-                    )
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
         // Preset Selector
         Text(
             text = "EQUALIZER PRESETS",
@@ -253,25 +207,6 @@ fun SoundScreen(viewModel: MusicViewModel) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun CockpitSettingRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = Color.White, fontSize = 12.sp)
-        Switch(
-            checked = checked, 
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = WalkmanOrange,
-                checkedTrackColor = WalkmanOrange.copy(alpha = 0.3f)
-            )
-        )
     }
 }
 

@@ -78,6 +78,7 @@ class MusicViewModel(
     @androidx.annotation.OptIn(UnstableApi::class)
     val deviceState: StateFlow<DeviceState> = combine(
         playbackStatus,
+        repository.currentQueue,
         repository.scanState,
         _gainStage,
         _deviceMode,
@@ -88,14 +89,15 @@ class MusicViewModel(
         _deviceSettings
     ) { flows ->
         val playback = flows[0] as PlaybackStatus
-        val scan = flows[1] as ScanState
-        val gain = flows[2] as GainStage
-        val mode = flows[3] as DeviceMode
-        val network = flows[4] as NetworkState
-        val power = flows[5] as PowerState
-        val caps = flows[6] as AudioCapabilities
-        val session = flows[7] as AudioSession
-        val settings = flows[8] as DeviceSettings
+        val queue = flows[1] as? PlaybackQueue
+        val scan = flows[2] as ScanState
+        val gain = flows[3] as GainStage
+        val mode = flows[4] as DeviceMode
+        val network = flows[5] as NetworkState
+        val power = flows[6] as PowerState
+        val caps = flows[7] as AudioCapabilities
+        val session = flows[8] as AudioSession
+        val settings = flows[9] as DeviceSettings
 
         // Telemetry driven logic
         val isBluetooth = audioManager.isBluetoothA2dpOn
@@ -114,6 +116,7 @@ class MusicViewModel(
 
         DeviceState(
             playback = playback,
+            queue = queue,
             output = output,
             gain = gain,
             mode = mode,
@@ -400,6 +403,12 @@ class MusicViewModel(
         audioEngine?.play()
     }
 
+    fun updateQueueIndex(index: Int) {
+        repository.updateQueueIndex(index)
+        // Also need to tell the engine to skip to this item
+        // controller?.seekToDefaultPosition(index)
+    }
+
     fun setEqEnabled(enabled: Boolean) {
         _eqEnabled.value = enabled
         controller?.sendCustomCommand(
@@ -448,9 +457,66 @@ class MusicViewModel(
         updatePlaybackStatus()
     }
 
-    fun setGainStage(stage: GainStage) {
-        _gainStage.value = stage
-        // In a real DAP, this would send a command to the audio hardware/kernel
+    fun moveQueueItem(from: Int, to: Int) {
+        val current = _playbackStatus.value.currentSongId
+        val queue = repository.currentQueue.value ?: return
+        val list = queue.songs.toMutableList()
+        val item = list.removeAt(from)
+        list.add(to, item)
+        
+        val newIndex = list.indexOfFirst { it.id.toString() == current }
+        repository.updateQueueOrder(list)
+        if (newIndex != -1) {
+            repository.updateQueueIndex(newIndex)
+        }
+        
+        viewModelScope.launch {
+            repository.savePlaybackState(
+                songId = current?.toLongOrNull(),
+                positionMs = _playbackStatus.value.position
+            )
+        }
+    }
+
+    fun removeQueueItem(index: Int) {
+        val current = _playbackStatus.value.currentSongId
+        val queue = repository.currentQueue.value ?: return
+        if (index == queue.currentIndex) return // Don't remove currently playing for now
+        
+        val list = queue.songs.toMutableList()
+        list.removeAt(index)
+        
+        val newIndex = list.indexOfFirst { it.id.toString() == current }
+        repository.updateQueueOrder(list)
+        if (newIndex != -1) {
+            repository.updateQueueIndex(newIndex)
+        }
+
+        viewModelScope.launch {
+            repository.savePlaybackState(
+                songId = current?.toLongOrNull(),
+                positionMs = _playbackStatus.value.position
+            )
+        }
+    }
+
+    fun setShuffleEnabled(enabled: Boolean) {
+        repository.setShuffleEnabled(enabled)
+        saveSession()
+    }
+
+    fun setRepeatMode(mode: RepeatMode) {
+        repository.setRepeatMode(mode)
+        saveSession()
+    }
+
+    private fun saveSession() {
+        viewModelScope.launch {
+            repository.savePlaybackState(
+                songId = _playbackStatus.value.currentSongId?.toLongOrNull(),
+                positionMs = _playbackStatus.value.position
+            )
+        }
     }
 
     fun toggleNavigationMode() {
@@ -480,6 +546,10 @@ class MusicViewModel(
 
     fun seekTo(position: Long) {
         audioEngine?.seekTo(position)
+    }
+
+    fun setGainStage(stage: GainStage) {
+        _gainStage.value = stage
     }
 
     fun toggleDeviceMode(mode: DeviceMode) {

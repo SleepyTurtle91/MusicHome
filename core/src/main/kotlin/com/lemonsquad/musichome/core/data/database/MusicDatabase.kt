@@ -8,9 +8,10 @@ import androidx.room.RoomDatabase
         LocalSongEntity::class, 
         PlaybackStateEntity::class, 
         WatchedFolderEntity::class,
-        AppSettingsEntity::class
+        AppSettingsEntity::class,
+        LibraryStatsEntity::class
     ], 
-    version = 4, 
+    version = 6, 
     exportSchema = false
 )
 abstract class MusicDatabase : RoomDatabase() {

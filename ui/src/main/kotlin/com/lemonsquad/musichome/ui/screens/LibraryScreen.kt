@@ -38,11 +38,12 @@ import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 fun LibraryScreen(
     viewModel: MusicViewModel,
     onAlbumClick: (Album) -> Unit = {},
-    onEditMetadata: (Song) -> Unit = {}
+    onEditMetadata: (Song) -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Songs", "Albums", "Artists", "Folders")
+    val tabs = listOf("Songs", "Albums", "Artists")
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
 
@@ -85,43 +86,39 @@ fun LibraryScreen(
                 }
             }
             is MusicUiState.Empty -> {
-                if (selectedTab == 3) {
-                    FolderList(viewModel)
-                } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(32.dp)
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Text(
+                            "♪",
+                            fontSize = 48.sp,
+                            color = WalkmanOrange.copy(alpha = 0.3f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "LIBRARY EMPTY",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 2.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "No music storage detected. Configure your music locations in Settings to begin.",
+                            color = MetallicGray,
+                            fontSize = 12.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Button(
+                            onClick = onNavigateToSettings,
+                            colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange),
+                            shape = RoundedCornerShape(4.dp)
                         ) {
-                            Text(
-                                "♪",
-                                fontSize = 48.sp,
-                                color = WalkmanOrange.copy(alpha = 0.3f)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "LIBRARY EMPTY",
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 2.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "No music storage detected. Connect your music folder to begin playback.",
-                                color = MetallicGray,
-                                fontSize = 12.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(32.dp))
-                            Button(
-                                onClick = { selectedTab = 3 },
-                                colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange),
-                                shape = RoundedCornerShape(4.dp)
-                            ) {
-                                Text("SETUP STORAGE", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                            }
+                            Text("CONFIGURE STORAGE", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                         }
                     }
                 }
@@ -131,58 +128,8 @@ fun LibraryScreen(
                     0 -> SongList(state.songs, viewModel, isTablet, onEditMetadata)
                     1 -> AlbumGrid(state.albums, viewModel, isTablet, onAlbumClick)
                     2 -> ArtistList(state.artists, viewModel, isTablet)
-                    3 -> FolderList(viewModel)
                     else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("TAB COMING SOON", color = MetallicGray)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FolderList(viewModel: MusicViewModel) {
-    val folders by viewModel.repository.watchedFolders.collectAsState(initial = emptyList())
-    var selectedFolderPath by remember { mutableStateOf<String?>(null) }
-
-    if (selectedFolderPath != null) {
-        FolderBrowser(
-            rootPath = selectedFolderPath!!,
-            onFileClick = { /* TODO: Play file directly if audio */ },
-            onBack = { selectedFolderPath = null }
-        )
-    } else {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Button(
-                onClick = { viewModel.requestDirectoryPicker() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = WalkmanOrange),
-                shape = RoundedCornerShape(4.dp)
-            ) {
-                Text("ADD MUSIC FOLDER", fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-            }
-
-            LazyColumn {
-                items(folders) { folder ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selectedFolderPath = folder }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(MusicHomeIcons.Folder, null, tint = WalkmanOrange, modifier = Modifier.size(32.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = folder.substringAfterLast("/"), color = Color.White, fontSize = 16.sp)
-                            Text(text = folder, color = MetallicGray, fontSize = 12.sp, maxLines = 1)
-                        }
-                        IconButton(onClick = { viewModel.repository.removeManualPath(folder) }) {
-                            Icon(MusicHomeIcons.Delete, null, tint = Color.Red)
-                        }
                     }
                 }
             }

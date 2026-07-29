@@ -15,5 +15,15 @@ data class LocalSongEntity(
     val path: String,
     val mimeType: String,
     val dateAdded: Long,
-    val trackNumber: Int = 0
+    val dateModified: Long = 0,
+    val size: Long = 0,
+    val trackNumber: Int = 0,
+    val year: Int? = null,
+    val bitrate: Int = 0,
+    val genre: String? = null,
+    val replayGain: Float? = null,
+    val albumGain: Float? = null,
+    val replayPeak: Float? = null,
+    val loudnessRange: Float? = null,
+    val scanState: Int = 0 // 0: Indexed, 1: Enriched, 2: Analyzed
 )
