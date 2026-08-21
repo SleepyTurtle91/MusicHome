@@ -85,6 +85,11 @@ fun LibraryScreen(
                     CircularProgressIndicator(color = WalkmanOrange)
                 }
             }
+            is MusicUiState.Error -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(text = "Error: ${state.message}", color = androidx.compose.ui.graphics.Color.Red)
+                }
+            }
             is MusicUiState.Empty -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(

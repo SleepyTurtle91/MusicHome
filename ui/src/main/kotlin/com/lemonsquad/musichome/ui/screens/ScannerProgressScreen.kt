@@ -31,7 +31,7 @@ fun ScannerProgressScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("SYSTEM SCAN", style = MaterialTheme.typography.titleMedium, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = NearBlack)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = NearBlack)
             )
         },
         containerColor = NearBlack

@@ -18,19 +18,30 @@ import com.lemonsquad.musichome.ui.theme.MetallicGray
 import com.lemonsquad.musichome.ui.theme.PureBlack
 import com.lemonsquad.musichome.ui.theme.WalkmanOrange
 
+import androidx.compose.foundation.border
+import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
+import androidx.compose.ui.draw.clip
+
 @Composable
-fun AppearanceSettingsScreen(onBack: () -> Unit) {
+fun AppearanceSettingsScreen(
+    viewModel: MusicViewModel,
+    onBack: () -> Unit
+) {
+    val currentAccent by viewModel.accentColor.collectAsState()
+    val trueBlack by viewModel.trueBlack.collectAsState()
+    val activeAccentColor = Color(currentAccent)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PureBlack)
+            .background(if (trueBlack) PureBlack else Color(0xFF09090B))
             .padding(16.dp)
     ) {
         Text(
             text = "APPEARANCE",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = WalkmanOrange,
+            color = activeAccentColor,
             letterSpacing = 2.sp
         )
         
@@ -39,14 +50,26 @@ fun AppearanceSettingsScreen(onBack: () -> Unit) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
                 AppearanceCard(title = "ACCENT COLOR") {
-                    val colors = listOf(WalkmanOrange, Color(0xFF2196F3), Color(0xFF4CAF50), Color(0xFFE91E63))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        colors.forEach { color ->
+                    val colors = listOf(
+                        0xFFFF6A00.toInt() to "Orange",
+                        0xFF2196F3.toInt() to "Blue",
+                        0xFF4CAF50.toInt() to "Green",
+                        0xFFE91E63.toInt() to "Pink"
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        colors.forEach { (colorVal, _) ->
+                            val color = Color(colorVal)
+                            val isSelected = currentAccent == colorVal
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .background(color, CircleShape)
-                                    .clickable { /* Update global theme later */ }
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .then(
+                                        if (isSelected) Modifier.border(3.dp, Color.White, CircleShape)
+                                        else Modifier
+                                    )
+                                    .clickable { viewModel.setAccentColor(colorVal) }
                             )
                         }
                     }
@@ -62,9 +85,12 @@ fun AppearanceSettingsScreen(onBack: () -> Unit) {
                     ) {
                         Text("True Black Mode", color = Color.White, fontSize = 14.sp)
                         Switch(
-                            checked = true, 
-                            onCheckedChange = {},
-                            colors = SwitchDefaults.colors(checkedThumbColor = WalkmanOrange)
+                            checked = trueBlack, 
+                            onCheckedChange = { viewModel.setTrueBlack(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = activeAccentColor,
+                                checkedTrackColor = activeAccentColor.copy(alpha = 0.5f)
+                            )
                         )
                     }
                 }
@@ -76,10 +102,10 @@ fun AppearanceSettingsScreen(onBack: () -> Unit) {
         Button(
             onClick = onBack,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+            colors = ButtonDefaults.buttonColors(containerColor = activeAccentColor),
             shape = RoundedCornerShape(4.dp)
         ) {
-            Text("DONE", fontWeight = FontWeight.Bold)
+            Text("DONE", fontWeight = FontWeight.Bold, color = Color.Black)
         }
     }
 }

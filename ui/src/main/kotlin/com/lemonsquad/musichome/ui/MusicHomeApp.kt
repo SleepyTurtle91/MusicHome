@@ -109,7 +109,14 @@ fun MusicHomeApp(
     val isInitialized by musicViewModel.isInitialized.collectAsState()
     val maxVolume = 15 // Standard Android max volume for media, could be dynamic
 
-    WalkmanTheme {
+    val accentColorValue by musicViewModel.accentColor.collectAsState()
+    val trueBlack by musicViewModel.trueBlack.collectAsState()
+    val activeAccent = Color(accentColorValue)
+
+    WalkmanTheme(
+        accentColor = activeAccent,
+        trueBlack = trueBlack
+    ) {
         AnimatedContent(
             targetState = isInitialized,
             transitionSpec = {
@@ -145,7 +152,7 @@ fun MusicHomeApp(
                                     Icon(
                                         if (isSelected) item.activeIcon else item.icon, 
                                         contentDescription = item.label,
-                                        tint = if (isSelected) WalkmanOrange else Color.Gray,
+                                        tint = if (isSelected) activeAccent else Color.Gray,
                                         modifier = if (isSelected) Modifier.size(28.dp) else Modifier.size(24.dp)
                                     ) 
                                 },
@@ -156,7 +163,7 @@ fun MusicHomeApp(
                                             fontSize = 10.sp, 
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                             letterSpacing = 1.sp,
-                                            color = if (isSelected) WalkmanOrange else Color.Gray
+                                            color = if (isSelected) activeAccent else Color.Gray
                                         ) 
                                     }
                                 }
@@ -183,7 +190,7 @@ fun MusicHomeApp(
                                             isWifiConnected = deviceState.network.isWifiConnected
                                         )
                                     },
-                                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                                    colors = TopAppBarDefaults.topAppBarColors(
                                         containerColor = Color.Black
                                     ),
                                     actions = {
@@ -218,6 +225,8 @@ fun MusicHomeApp(
                                         onTogglePlay = { 
                                             if (deviceState.playback.isPlaying) musicViewModel.pause() else musicViewModel.resume()
                                         },
+                                        onSkipPrevious = { musicViewModel.skipToPrevious() },
+                                        onSkipNext = { musicViewModel.skipToNext() },
                                         onClick = { navController.navigate("player") }
                                     )
                                 }
@@ -226,9 +235,20 @@ fun MusicHomeApp(
                     ) { innerPadding ->
                         NavHost(
                             navController = navController,
-                            startDestination = "player",
+                            startDestination = "home",
                             modifier = Modifier.padding(innerPadding)
                         ) {
+                            composable(MusicDestination.Home.route) {
+                                val uiState by musicViewModel.uiState.collectAsState()
+                                DapHomeScreen(
+                                    uiState = uiState,
+                                    onNavigateToDestination = { route -> navController.navigate(route) },
+                                    onSongClick = { song ->
+                                        musicViewModel.playSong(song)
+                                        navController.navigate("player")
+                                    }
+                                )
+                            }
                             composable("library") { 
                                 LibraryScreen(
                                     viewModel = musicViewModel,
@@ -243,7 +263,10 @@ fun MusicHomeApp(
                                 ) 
                             }
                             composable("album-detail") {
-                                AlbumDetailScreen(musicViewModel)
+                                AlbumDetailScreen(
+                                    viewModel = musicViewModel,
+                                    onBack = { navController.popBackStack() }
+                                )
                             }
                             composable("queue") {
                                 QueueScreen(musicViewModel)
@@ -299,7 +322,15 @@ fun MusicHomeApp(
                             composable("search") {
                                 GlobalSearchScreen(
                                     viewModel = musicViewModel,
-                                    onBack = { navController.popBackStack() }
+                                    onBack = { navController.popBackStack() },
+                                    onSongClick = { song ->
+                                        musicViewModel.playSong(song)
+                                        navController.navigate("player")
+                                    },
+                                    onAlbumClick = { album ->
+                                        musicViewModel.selectAlbum(album)
+                                        navController.navigate("album-detail")
+                                    }
                                 )
                             }
                             composable("dashboard") {
@@ -319,7 +350,12 @@ fun MusicHomeApp(
                                     onNavigateToLibrary = { navController.navigate("settings/library") }
                                 ) 
                             }
-                            composable("settings/appearance") { AppearanceSettingsScreen(onBack = { navController.popBackStack() }) }
+                            composable("settings/appearance") { 
+                                AppearanceSettingsScreen(
+                                    viewModel = musicViewModel,
+                                    onBack = { navController.popBackStack() }
+                                ) 
+                            }
                             composable("settings/playback") { PlaybackSettingsScreen(viewModel = musicViewModel, onBack = { navController.popBackStack() }) }
                             composable("settings/updates") { UpdatesSettingsScreen(appVersion = appVersion, onBack = { navController.popBackStack() }) }
                             composable("settings/library") { 
@@ -369,6 +405,7 @@ fun MusicBottomBar(navController: NavHostController) {
             NavigationItem("settings", "Settings", MusicHomeIcons.Settings, MusicHomeIcons.SettingsActive)
         )
 
+        val activeAccent = com.lemonsquad.musichome.ui.theme.LocalAccentColor.current
         navItems.forEach { item ->
             val isSelected = currentDestination == item.route
             NavigationBarItem(
@@ -388,20 +425,20 @@ fun MusicBottomBar(navController: NavHostController) {
                     Icon(
                         if (isSelected) item.activeIcon else item.icon, 
                         contentDescription = item.label,
-                        tint = if (isSelected) WalkmanOrange else Color.Gray
+                        tint = if (isSelected) activeAccent else Color.Gray
                     ) 
                 },
                 label = { 
                     Text(
                         item.label.uppercase(), 
-                        fontSize = 10.sp,
-                        color = if (isSelected) WalkmanOrange else Color.Gray,
+                        fontSize = 10.sp, 
+                        color = if (isSelected) activeAccent else Color.Gray,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     ) 
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = WalkmanOrange,
-                    selectedTextColor = WalkmanOrange,
+                    selectedIconColor = activeAccent,
+                    selectedTextColor = activeAccent,
                     indicatorColor = Color.Transparent,
                     unselectedIconColor = Color.Gray,
                     unselectedTextColor = Color.Gray

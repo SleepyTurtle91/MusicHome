@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -100,16 +101,28 @@ class MusicViewModel(
         val settings = flows[9] as DeviceSettings
 
         // Telemetry driven logic
+        // L.I.S.A. Architecture Note: Retained deprecated isBluetoothA2dpOn intentionally.
+        // Modern heuristic replacements (like getDevices) only prove a device is connected, not that 
+        // it is the active route. True High-Honesty telemetry requires AudioTrack.getRoutedDevice(),
+        // which Media3 currently obscures. Until we can safely extract the AudioTrack, this remains ESTIMATED.
+        @Suppress("DEPRECATION")
         val isBluetooth = audioManager.isBluetoothA2dpOn
+
+        val hasUsbAudio = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { device ->
+            device.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
+            device.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+            device.type == AudioDeviceInfo.TYPE_USB_ACCESSORY
+        }
+
         val output = when {
             isBluetooth -> OutputState.Bluetooth
-            playback.sampleRate != null && (playback.sampleRate!! > 48000) -> OutputState.UsbDAC
+            hasUsbAudio -> OutputState.UsbDAC
             else -> OutputState.InternalDAC
         }
-        
+
         val verification = when {
-            output == OutputState.UsbDAC && playback.sampleRate != null && (playback.sampleRate!! > 48000) -> 
-                VerificationStatus.VERIFIED
+            output == OutputState.UsbDAC -> VerificationStatus.VERIFIED
+            output == OutputState.Bluetooth -> VerificationStatus.ESTIMATED
             playback.isHighRes -> VerificationStatus.ESTIMATED
             else -> VerificationStatus.UNKNOWN
         }
@@ -174,6 +187,24 @@ class MusicViewModel(
     
     private val _showVolumeHud = MutableStateFlow(false)
     val showVolumeHud = _showVolumeHud.asStateFlow()
+
+    private val prefs = context.getSharedPreferences("music_home_appearance_prefs", Context.MODE_PRIVATE)
+    
+    private val _accentColor = MutableStateFlow(prefs.getInt("accent_color", 0xFFFF6A00.toInt()))
+    val accentColor: StateFlow<Int> = _accentColor.asStateFlow()
+
+    private val _trueBlack = MutableStateFlow(prefs.getBoolean("true_black", true))
+    val trueBlack: StateFlow<Boolean> = _trueBlack.asStateFlow()
+
+    fun setAccentColor(colorValue: Int) {
+        _accentColor.value = colorValue
+        prefs.edit().putInt("accent_color", colorValue).apply()
+    }
+
+    fun setTrueBlack(enabled: Boolean) {
+        _trueBlack.value = enabled
+        prefs.edit().putBoolean("true_black", enabled).apply()
+    }
 
     private var onDirectoryPickerRequest: (() -> Unit)? = null
 
@@ -396,17 +427,20 @@ class MusicViewModel(
     }
 
     fun pause() {
+        controller?.pause()
         audioEngine?.pause()
+        updatePlaybackStatus()
     }
 
     fun resume() {
+        controller?.play()
         audioEngine?.play()
+        updatePlaybackStatus()
     }
 
     fun updateQueueIndex(index: Int) {
         repository.updateQueueIndex(index)
-        // Also need to tell the engine to skip to this item
-        // controller?.seekToDefaultPosition(index)
+        controller?.seekToDefaultPosition(index)
     }
 
     fun setEqEnabled(enabled: Boolean) {
@@ -448,11 +482,13 @@ class MusicViewModel(
     }
 
     fun skipToNext() {
+        controller?.seekToNext()
         audioEngine?.skipNext()
         updatePlaybackStatus()
     }
 
     fun skipToPrevious() {
+        controller?.seekToPrevious()
         audioEngine?.skipPrevious()
         updatePlaybackStatus()
     }
@@ -545,6 +581,7 @@ class MusicViewModel(
     }
 
     fun seekTo(position: Long) {
+        controller?.seekTo(position)
         audioEngine?.seekTo(position)
     }
 

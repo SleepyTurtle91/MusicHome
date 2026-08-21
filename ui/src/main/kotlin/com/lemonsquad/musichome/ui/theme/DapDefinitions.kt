@@ -11,6 +11,13 @@ sealed class MusicDestination(
     val icon: ImageVector,
     val activeIcon: ImageVector
 ) {
+    data object Home : MusicDestination(
+        "home",
+        "Home",
+        MusicHomeIcons.Library,
+        MusicHomeIcons.LibraryActive
+    )
+
     data object Library : MusicDestination(
         "library", 
         "Library", 
@@ -48,6 +55,8 @@ sealed class MusicDestination(
     
     companion object {
         val ALL = listOf(Library, Player, Explore, Sound, Settings)
+        const val ROUTE_QUEUE = "queue"
+        const val ROUTE_SETTINGS_LIBRARY = "settings/library"
     }
 }
 

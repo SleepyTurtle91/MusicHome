@@ -41,4 +41,6 @@ interface MusicRepository {
 
     suspend fun syncLibrary()
     suspend fun refreshLibrary()
+    suspend fun updateSongMetadata(id: Long, title: String, artist: String, album: String?)
+    suspend fun deleteSong(id: Long)
 }

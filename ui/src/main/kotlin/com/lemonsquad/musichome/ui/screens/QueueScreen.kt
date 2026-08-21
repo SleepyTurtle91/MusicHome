@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,7 +42,7 @@ fun QueueScreen(viewModel: MusicViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.QueueMusic,
+                Icons.AutoMirrored.Filled.QueueMusic,
                 contentDescription = null,
                 tint = WalkmanOrange,
                 modifier = Modifier.size(28.dp)
@@ -137,14 +137,13 @@ fun SwipeToDismissItem(
     onDismiss: () -> Unit,
     content: @Composable () -> Unit
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart) {
-                onDismiss()
-                true
-            } else false
+    val dismissState = rememberSwipeToDismissBoxState()
+
+    LaunchedEffect(dismissState.currentValue) {
+        if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+            onDismiss()
         }
-    )
+    }
 
     SwipeToDismissBox(
         state = dismissState,

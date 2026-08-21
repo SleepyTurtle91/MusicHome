@@ -7,6 +7,7 @@ import com.lemonsquad.musichome.core.domain.model.Song
 sealed interface MusicUiState {
     object Loading : MusicUiState
     object Empty : MusicUiState
+    data class Error(val message: String) : MusicUiState
     data class Success(
         val songs: List<Song>,
         val albums: List<Album> = emptyList(),

@@ -31,7 +31,10 @@ import com.lemonsquad.musichome.ui.viewmodels.AlbumDetailUiState
 import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 
 @Composable
-fun AlbumDetailScreen(viewModel: MusicViewModel) {
+fun AlbumDetailScreen(
+    viewModel: MusicViewModel,
+    onBack: () -> Unit = {}
+) {
     val uiState by viewModel.albumDetailState.collectAsState()
 
     when (val state = uiState) {
@@ -41,7 +44,7 @@ fun AlbumDetailScreen(viewModel: MusicViewModel) {
             }
         }
         is AlbumDetailUiState.Success -> {
-            AlbumDetailContent(state, viewModel)
+            AlbumDetailContent(state, viewModel, onBack)
         }
         is AlbumDetailUiState.Error -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -52,7 +55,11 @@ fun AlbumDetailScreen(viewModel: MusicViewModel) {
 }
 
 @Composable
-fun AlbumDetailContent(state: AlbumDetailUiState.Success, viewModel: MusicViewModel) {
+fun AlbumDetailContent(
+    state: AlbumDetailUiState.Success, 
+    viewModel: MusicViewModel,
+    onBack: () -> Unit = {}
+) {
     val dominantColor = state.dominantColor?.let { Color(it) } ?: PureBlack
     
     val backgroundBrush = Brush.verticalGradient(
@@ -67,6 +74,30 @@ fun AlbumDetailContent(state: AlbumDetailUiState.Success, viewModel: MusicViewMo
             .fillMaxSize()
             .background(backgroundBrush)
     ) {
+        // Back Navigation Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    com.lemonsquad.musichome.ui.icons.MusicHomeIcons.Back, 
+                    contentDescription = "Back", 
+                    tint = WalkmanOrange
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "ALBUM", 
+                color = MetallicGray, 
+                fontSize = 12.sp, 
+                fontWeight = FontWeight.Bold, 
+                letterSpacing = 2.sp
+            )
+        }
+
         // Header Section
         Row(
             modifier = Modifier
@@ -123,7 +154,7 @@ fun AlbumDetailContent(state: AlbumDetailUiState.Success, viewModel: MusicViewMo
                         onClick = { viewModel.shuffleAlbum(state.album, state.songs) },
                         shape = RoundedCornerShape(4.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(Color.White, Color.Transparent))),
+                        border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = Brush.linearGradient(listOf(Color.White, Color.Transparent))),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))

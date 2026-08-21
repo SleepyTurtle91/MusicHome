@@ -11,6 +11,12 @@ interface SongDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(songs: List<LocalSongEntity>)
 
+    @Query("UPDATE local_songs SET title = :title, artist = :artist, album = :album WHERE id = :id")
+    suspend fun updateSongMetadata(id: Long, title: String, artist: String, album: String?)
+
+    @Query("DELETE FROM local_songs WHERE id = :id")
+    suspend fun deleteSong(id: Long)
+
     @Query("SELECT * FROM local_songs ORDER BY title ASC")
     fun getAllSongsSortedByTitle(): Flow<List<LocalSongEntity>>
 

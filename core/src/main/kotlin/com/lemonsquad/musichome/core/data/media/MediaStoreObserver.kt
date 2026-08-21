@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 class MediaStoreObserver(
     private val context: Context,
     private val onSyncRequested: suspend () -> Unit
@@ -21,6 +22,10 @@ class MediaStoreObserver(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val syncTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
+    // L.I.S.A. Architecture Note: Intentional adoption of FlowPreview.
+    // The debounce operator is essential here to prevent the ContentObserver from 
+    // flooding the system with sync requests during bulk media operations.
+    // There is no stable alternative in kotlinx.coroutines, so we explicitly opt in.
     init {
         scope.launch {
             syncTrigger

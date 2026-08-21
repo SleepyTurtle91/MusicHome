@@ -260,6 +260,14 @@ class LocalMediaRepository(
         val state = dao.getPlaybackState() ?: return null
         return state.lastDestination?.let { it to state.lastDestinationId }
     }
+
+    override suspend fun updateSongMetadata(id: Long, title: String, artist: String, album: String?) {
+        dao.updateSongMetadata(id, title, artist, album)
+    }
+
+    override suspend fun deleteSong(id: Long) {
+        dao.deleteSong(id)
+    }
 }
 
 private fun LocalSongEntity.toDomain(): Song = Song(

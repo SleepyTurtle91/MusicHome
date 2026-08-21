@@ -28,7 +28,10 @@ import kotlinx.coroutines.delay
 @Composable
 fun GlobalSearchScreen(
     viewModel: MusicViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSongClick: (com.lemonsquad.musichome.core.domain.model.Song) -> Unit = {},
+    onAlbumClick: (com.lemonsquad.musichome.core.domain.model.Album) -> Unit = {},
+    onArtistClick: (com.lemonsquad.musichome.core.domain.model.Artist) -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
@@ -100,7 +103,16 @@ fun GlobalSearchScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         
                         items.forEach { item ->
-                            SearchResultItem(item)
+                            SearchResultItem(
+                                item = item,
+                                onClick = {
+                                    when (item) {
+                                        is com.lemonsquad.musichome.core.domain.model.Song -> onSongClick(item)
+                                        is com.lemonsquad.musichome.core.domain.model.Album -> onAlbumClick(item)
+                                        is com.lemonsquad.musichome.core.domain.model.Artist -> onArtistClick(item)
+                                    }
+                                }
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
@@ -127,12 +139,12 @@ fun GlobalSearchScreen(
 }
 
 @Composable
-fun SearchResultItem(item: Any) {
+fun SearchResultItem(item: Any, onClick: () -> Unit = {}) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color(0xFF151515),
         shape = RoundedCornerShape(4.dp),
-        onClick = { /* Handle navigation based on type */ }
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier.padding(12.dp),

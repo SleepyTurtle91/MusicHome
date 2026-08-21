@@ -14,11 +14,8 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.room.Room
 import com.lemonsquad.musichome.core.data.LauncherRepositoryImpl
-import com.lemonsquad.musichome.core.data.database.MusicDatabase
-import com.lemonsquad.musichome.core.data.media.MediaStoreScanner
-import com.lemonsquad.musichome.core.data.repository.LocalMediaRepository
+import com.lemonsquad.musichome.core.domain.repository.MusicRepositoryProvider
 import com.lemonsquad.musichome.organizer.ui.LibraryToolsViewModel
 import com.lemonsquad.musichome.ui.MusicHomeApp
 import com.lemonsquad.musichome.ui.viewmodels.AppsViewModel
@@ -26,6 +23,12 @@ import com.lemonsquad.musichome.ui.viewmodels.MusicViewModel
 
 class MainActivity : ComponentActivity() {
     private lateinit var musicViewModel: MusicViewModel
+
+    private val audioPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            musicViewModel.syncLibrary()
+        }
+    }
 
     private val directoryPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
         uri?.let {
@@ -38,6 +41,20 @@ class MainActivity : ComponentActivity() {
             // For SD cards on Android 7+, SAF URIs are the only reliable way
             // to access files. We'll store the URI string directly.
             musicViewModel.repository.addManualPath(it.toString())
+        }
+    }
+
+    private fun checkAndRequestAudioPermission() {
+        val permission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            android.Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            musicViewModel.syncLibrary()
+        } else {
+            audioPermissionLauncher.launch(permission)
         }
     }
 
@@ -69,15 +86,8 @@ class MainActivity : ComponentActivity() {
         setupImmersiveMode()
         volumeControlStream = AudioManager.STREAM_MUSIC
 
-        // Basic Manual DI for the skeleton
-        val database = Room.databaseBuilder(
-            applicationContext,
-            MusicDatabase::class.java,
-            "music_db"
-        ).fallbackToDestructiveMigration().build()
-        
-        val mediaStoreScanner = MediaStoreScanner(applicationContext)
-        val musicRepository = LocalMediaRepository(mediaStoreScanner, database.songDao(), applicationContext)
+        // L.I.S.A. A1: Retrieve process-scoped singleton repository from Application container
+        val musicRepository = (application as MusicRepositoryProvider).musicRepository
         val launcherRepository = LauncherRepositoryImpl(applicationContext)
 
         val libraryToolsViewModel = LibraryToolsViewModel(musicRepository)
@@ -85,6 +95,9 @@ class MainActivity : ComponentActivity() {
         musicViewModel = MusicViewModel(musicRepository, applicationContext)
         musicViewModel.setDirectoryPicker { directoryPicker.launch(null) }
         val appsViewModel = AppsViewModel(launcherRepository)
+
+        // L.I.S.A. A2: Request runtime audio storage permission on first launch
+        checkAndRequestAudioPermission()
 
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)

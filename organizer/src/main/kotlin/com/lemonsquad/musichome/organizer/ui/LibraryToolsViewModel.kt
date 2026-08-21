@@ -32,7 +32,15 @@ class LibraryToolsViewModel(val repository: MusicRepository) : ViewModel() {
     }
 
     fun updateSong(song: com.lemonsquad.musichome.core.domain.model.Song) {
-        // Implementation in core repository later
+        viewModelScope.launch {
+            repository.updateSongMetadata(song.id, song.title, song.artist, song.album)
+        }
+    }
+
+    fun deleteSong(song: com.lemonsquad.musichome.core.domain.model.Song) {
+        viewModelScope.launch {
+            repository.deleteSong(song.id)
+        }
     }
 
     suspend fun getSongByPath(path: String): com.lemonsquad.musichome.core.domain.model.Song? {

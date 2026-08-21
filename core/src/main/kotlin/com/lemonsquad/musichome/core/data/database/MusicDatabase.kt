@@ -12,7 +12,7 @@ import androidx.room.RoomDatabase
         LibraryStatsEntity::class
     ], 
     version = 6, 
-    exportSchema = false
+    exportSchema = true
 )
 abstract class MusicDatabase : RoomDatabase() {
     abstract fun songDao(): SongDao

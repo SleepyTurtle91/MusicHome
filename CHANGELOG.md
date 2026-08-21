@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.0] - 2026-08-21
+
+### Added
+- **Dynamic Appearance & OLED Optimization**:
+  - Live theme accent color selection (**Walkman Orange**, **Blue**, **Green**, **Pink**) with persistent storage across app restarts.
+  - Switchable **True Black Mode** (Pure OLED Black vs Dark Zinc Appliance palette).
+  - Navigation bar, headers, and UI controls dynamically bind to user's active theme accent.
+- **Interactive Scrubber & Mini-Player Tri-Controls**:
+  - Replaced static progress indicator with an interactive seek `Slider` featuring smooth dragging state and real-time position tracking.
+  - Added dedicated `<|| Skip Previous` and `Skip Next ||>` buttons to the persistent bottom `PlaybackStrip`.
+  - Optimized Player layout vertical spacing to guarantee complete visibility of physical hardware buttons on all device viewports.
+- **Search & Navigation Integrity**:
+  - Connected search result clicks to instant playback in Player and album detail inspection.
+  - Added top navigation bar with back action to `AlbumDetailScreen`.
+- **Database & Metadata Pipeline**:
+  - Implemented Room `updateSongMetadata` and `deleteSong` queries across DAO, Repository, and `LibraryToolsViewModel`.
+
+### Changed
+- **Process Singleton Architecture (Tier 0)**:
+  - Introduced `MusicHomeApplication` and `MusicRepositoryProvider` in `:core` to ensure a single process-scoped container for `MusicDatabase` and `LocalMediaRepository`.
+  - Eliminated duplicate database builder instances and media scanner storms between UI and Background Service.
+- **API-Aware Permission Engine**:
+  - Added runtime audio permission handling supporting API 33+ `READ_MEDIA_AUDIO` and API ≤32 `READ_EXTERNAL_STORAGE` with seamless automatic library indexing.
+- **High-Honesty Audio Telemetry**:
+  - Replaced false sample-rate output heuristics with empirical Android `AudioDeviceInfo` output endpoint detection.
+- **Orientation & Desk Mode**:
+  - Removed manifest portrait orientation lock, unlocking tablet landscape and Desk Mode.
+
+### Fixed
+- Fixed Jetpack Compose `ArrayIndexOutOfBoundsException` in `Color.getColorSpace-impl` by migrating color construction to standard ARGB `Int` values.
+- Fixed `MusicViewModel` playback controls to delegate directly to `MediaController` / ExoPlayer.
+
+---
+
+### Added
+- **MH-FEAT-009 DAP Home Screen**: Completed L.I.S.A remediation cycle for `DapHomeScreen`.
+  - Addressed UI state-handling defects by hoisting `MusicUiState` and introducing explicit `Error` handling.
+  - Hardened navigation by replacing magic routes with canonical `MusicDestination` constants.
+  - Made metadata presentation defensive against malformed MIME types.
+  - Added new `DapHomeScreenTest` suite for robust state UI verification.
+- **MusicHome Knowledge System v1.0**: Formalized system documentation hierarchy (`PROJECT_CONTEXT.md`, `ROADMAP.md`, `FEATURES.md`, `docs/DOCUMENT_INDEX.md`).
+- **Architecture Specifications**: Comprehensive docs for module boundaries (`MODULE_ARCHITECTURE.md`), media pipeline state machine (`MEDIA_PIPELINE.md`), hardware state machine & high-honesty telemetry (`DEVICE_STATE.md`), and queue persistence (`QUEUE_ARCHITECTURE.md`).
+- **Engineering Quality Gates**: Formalized testing strategy & verification protocol (`TESTING_STRATEGY.md`).
+
+### Verified
+- **MH-FEAT-009 L.I.S.A Remediation**: Passed independent Auditor & Critic re-review. Resolved a frozen-core governance violation (`gradlew` permission) and verified all states (Loading/Error/Empty/Success) through automated UI tests and `./gradlew test`.
+- **Source/Doc Consistency Audit**: Aligned media pipeline docs with `ScanState` sealed class constructors (`Idle`, `Indexing`, `Enriching`, `Analyzing`, `Finished`, `Error`).
+- **Build & Verification Suite**: Passed clean `./gradlew assembleDebug` build gate and `./gradlew test` unit test suite (101 tasks).
+
 ## [2.5.0] - 2026-07-29
 
 ### Added

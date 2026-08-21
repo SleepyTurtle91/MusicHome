@@ -33,7 +33,12 @@ fun DuplicateFinderScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("DUPLICATE FINDER", style = MaterialTheme.typography.titleMedium, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = NearBlack)
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(com.lemonsquad.musichome.ui.icons.MusicHomeIcons.Back, contentDescription = "Back", tint = WalkmanOrange)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = NearBlack)
             )
         },
         containerColor = NearBlack
@@ -49,7 +54,10 @@ fun DuplicateFinderScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(groups) { group ->
-                    DuplicateGroupCard(group)
+                    DuplicateGroupCard(
+                        group = group,
+                        onDelete = { song -> viewModel.deleteSong(song) }
+                    )
                 }
             }
         }
@@ -57,7 +65,10 @@ fun DuplicateFinderScreen(
 }
 
 @Composable
-fun DuplicateGroupCard(group: DuplicateGroup) {
+fun DuplicateGroupCard(
+    group: DuplicateGroup,
+    onDelete: (com.lemonsquad.musichome.core.domain.model.Song) -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -90,7 +101,7 @@ fun DuplicateGroupCard(group: DuplicateGroup) {
                     Text(song.path, color = Color.White, fontSize = 11.sp, maxLines = 1)
                     Text("${song.mimeType} • ${song.size / 1024} KB", color = MetallicGray, fontSize = 10.sp)
                 }
-                IconButton(onClick = { /* Delete action */ }) {
+                IconButton(onClick = { onDelete(song) }) {
                     Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray, modifier = Modifier.size(20.dp))
                 }
             }

@@ -29,6 +29,8 @@ fun PlaybackStrip(
     song: Song,
     status: PlaybackStatus,
     onTogglePlay: () -> Unit,
+    onSkipPrevious: () -> Unit = {},
+    onSkipNext: () -> Unit = {},
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -102,12 +104,30 @@ fun PlaybackStrip(
                     }
                 }
 
+                IconButton(onClick = onSkipPrevious) {
+                    Icon(
+                        com.lemonsquad.musichome.ui.icons.MusicHomeIcons.SkipBack,
+                        contentDescription = "Previous",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
                 IconButton(onClick = onTogglePlay) {
                     Icon(
                         if (status.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = null,
+                        contentDescription = "Play/Pause",
                         tint = WalkmanOrange,
                         modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                IconButton(onClick = onSkipNext) {
+                    Icon(
+                        com.lemonsquad.musichome.ui.icons.MusicHomeIcons.SkipForward,
+                        contentDescription = "Next",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }

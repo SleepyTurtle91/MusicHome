@@ -81,6 +81,11 @@ class Media3AudioEngine(
         _bitDepth.value = depth
         _format.value = fmt
 
+        // L.I.S.A. Architecture Note: Retained deprecated isBluetoothA2dpOn intentionally.
+        // Modern heuristic replacements (like getDevices) only prove a device is connected, not that 
+        // it is the active route. True High-Honesty telemetry requires AudioTrack.getRoutedDevice(),
+        // which Media3 currently obscures. Until we can safely extract the AudioTrack, this remains ESTIMATED.
+        @Suppress("DEPRECATION")
         val isBluetooth = audioManager.isBluetoothA2dpOn
         
         // USB DAC Detection

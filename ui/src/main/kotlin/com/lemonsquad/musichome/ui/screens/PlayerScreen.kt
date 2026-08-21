@@ -120,6 +120,13 @@ fun PlayerScreen(viewModel: MusicViewModel) {
                 is MusicUiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = WalkmanOrange)
                 }
+                is MusicUiState.Error -> {
+                    Text(
+                        "ERROR: ${state.message}",
+                        color = androidx.compose.ui.graphics.Color.Red,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
                 is MusicUiState.Empty -> {
                     Text(
                         "NO MEDIA DETECTED",
@@ -339,20 +346,33 @@ fun TabletPlayerLayout(
             
             Spacer(modifier = Modifier.height(64.dp))
 
+            var isDragging by remember { mutableStateOf(false) }
+            var dragPositionRatio by remember { mutableFloatStateOf(0f) }
+            val currentProgress = if (isDragging) dragPositionRatio else status.progress
+            val displayPosition = if (isDragging) (dragPositionRatio * status.duration).toLong() else status.position
+
             Column {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(formatDuration(status.position), color = MetallicGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(formatDuration(displayPosition), color = MetallicGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Text(formatDuration(status.duration), color = MetallicGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                LinearProgressIndicator(
-                    progress = { status.progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    color = WalkmanOrange,
-                    trackColor = Color(0xFF1A1A1A)
+                Spacer(modifier = Modifier.height(4.dp))
+                Slider(
+                    value = currentProgress.coerceIn(0f, 1f),
+                    onValueChange = {
+                        isDragging = true
+                        dragPositionRatio = it
+                    },
+                    onValueChangeFinished = {
+                        isDragging = false
+                        viewModel.seekTo((dragPositionRatio * status.duration).toLong())
+                    },
+                    colors = SliderDefaults.colors(
+                        thumbColor = WalkmanOrange,
+                        activeTrackColor = WalkmanOrange,
+                        inactiveTrackColor = Color(0xFF1A1A1A)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
@@ -472,7 +492,7 @@ fun PhonePlayerLayout(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(0.6f)
-                .padding(horizontal = 32.dp, vertical = 16.dp),
+                .padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
@@ -486,34 +506,34 @@ fun PhonePlayerLayout(
                 QualityBadge(deviceState.verification, onClick = onShowSignalChain)
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = currentSong.title.uppercase(),
                 color = Color.White,
-                fontSize = 24.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
-                maxLines = 2,
-                textAlign = TextAlign.Center,
-                lineHeight = 32.sp
+                letterSpacing = 1.sp,
+                maxLines = 1,
+                textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = currentSong.artist,
                 color = WalkmanOrange,
-                fontSize = 16.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 1.sp,
+                maxLines = 1,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
+                    .height(48.dp)
                     .clickable { onToggleVisualizer() }
             ) {
                 when (visualizerMode) {
@@ -528,7 +548,7 @@ fun PhonePlayerLayout(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -539,29 +559,42 @@ fun PhonePlayerLayout(
                 InfoItem(if (status.bitrate != null) "${status.bitrate / 1000}k" else "—")
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            var isDragging by remember { mutableStateOf(false) }
+            var dragPositionRatio by remember { mutableFloatStateOf(0f) }
+            val currentProgress = if (isDragging) dragPositionRatio else status.progress
+            val displayPosition = if (isDragging) (dragPositionRatio * status.duration).toLong() else status.position
 
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(formatDuration(status.position), color = MetallicGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(formatDuration(displayPosition), color = MetallicGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Text(formatDuration(status.duration), color = MetallicGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                LinearProgressIndicator(
-                    progress = { status.progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    color = WalkmanOrange,
-                    trackColor = Color(0xFF1A1A1A)
+                Spacer(modifier = Modifier.height(2.dp))
+                Slider(
+                    value = currentProgress.coerceIn(0f, 1f),
+                    onValueChange = {
+                        isDragging = true
+                        dragPositionRatio = it
+                    },
+                    onValueChangeFinished = {
+                        isDragging = false
+                        viewModel.seekTo((dragPositionRatio * status.duration).toLong())
+                    },
+                    colors = SliderDefaults.colors(
+                        thumbColor = WalkmanOrange,
+                        activeTrackColor = WalkmanOrange,
+                        inactiveTrackColor = Color(0xFF1A1A1A)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -584,13 +617,13 @@ fun PhonePlayerLayout(
                 HardwareButton(
                     icon = MusicHomeIcons.SkipForward, 
                     onClick = { viewModel.skipToNext() },
-                    onLongPress = {
+                    onLongPress = { 
                         // Seek forward logic
                         viewModel.seekTo((status.position + 5000).coerceAtMost(status.duration))
                     }
                 )
             }
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

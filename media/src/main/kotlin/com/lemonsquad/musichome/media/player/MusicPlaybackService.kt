@@ -8,11 +8,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import androidx.room.Room
-import com.lemonsquad.musichome.core.data.database.MusicDatabase
-import com.lemonsquad.musichome.core.data.media.MediaStoreScanner
-import com.lemonsquad.musichome.core.data.repository.LocalMediaRepository
 import com.lemonsquad.musichome.core.domain.repository.MusicRepository
+import com.lemonsquad.musichome.core.domain.repository.MusicRepositoryProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,13 +54,8 @@ class MusicPlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         
-        val database = Room.databaseBuilder(
-            applicationContext,
-            MusicDatabase::class.java,
-            "music_db"
-        ).fallbackToDestructiveMigration().build()
-        val scanner = MediaStoreScanner(applicationContext)
-        repository = LocalMediaRepository(scanner, database.songDao(), applicationContext)
+        // L.I.S.A. A1: Retrieve process-scoped singleton repository from Application container
+        repository = (applicationContext as MusicRepositoryProvider).musicRepository
 
         initializePlayer()
         startPlaybackStateCheckpoint()
