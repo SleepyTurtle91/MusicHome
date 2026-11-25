@@ -37,7 +37,7 @@ Install and authenticate GitHub CLI (`gh auth login`), then run these commands f
 gh secret set SIGNING_KEY < <(base64 -w 0 "$HOME/.keys/musichome-release.p12")
 gh secret set KEY_ALIAS --body "musichome-release"
 
-read -rsp "Keystore password: " KEYSTORE_PASSWORD; printf '\\n'
+read -rsp "Keystore password: " KEYSTORE_PASSWORD; printf '\n'
 printf '%s' "$KEYSTORE_PASSWORD" | gh secret set KEY_STORE_PASSWORD
 printf '%s' "$KEYSTORE_PASSWORD" | gh secret set KEY_PASSWORD
 unset KEYSTORE_PASSWORD
