@@ -7,21 +7,12 @@ android {
     namespace = "com.lemonsquad.musichome"
     compileSdk = 37
 
-    signingConfigs {
-        create("release") {
-            storeFile = file("release.keystore")
-            storePassword = "password123"
-            keyAlias = "release-key"
-            keyPassword = "password123"
-        }
-    }
-
     defaultConfig {
         applicationId = "com.lemonsquad.musichome"
         minSdk = 24
         targetSdk = 37
-        versionCode = 6
-        versionName = "2.7.0"
+        versionCode = 7
+        versionName = "2.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,7 +25,8 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
+            // Release signing is performed by the CI signing step using GitHub Actions secrets.
+            // Never place keystores or signing credentials in the repository.
         }
     }
     compileOptions {
@@ -58,7 +50,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    
+
     implementation(libs.androidx.room.runtime)
 
     testImplementation(libs.junit)
